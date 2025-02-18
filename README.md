@@ -69,4 +69,4 @@ This plugin uses Google Gemini API, which currently offers free API access with 
 
 
 
-#### Yes RuneGPT is not an actual GPT since its not pre-trained. The goal can eventually load there, but I named this more on randomness.
+#### No, RuneGPT isn’t a true GPT model since it isn’t pre-trained. The name was chosen more for fun, though the project could eventually head in that direction.
