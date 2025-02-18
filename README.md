@@ -10,9 +10,8 @@ Ask Gemini about Old School RuneScape (OSRS) using your current player stats and
 
 ## 🚀 Features
 - 🖥️ Easy-to-Use Panel: Ask questions directly from RuneLite’s sidebar.
-- 🔹 Configurable API Key: Securely enter and store your LLM API key via RuneLite’s plugin settings.
-- ⚙️ Quick Setup: Just enter your API key and start asking—no complicated setup required.
-  
+- ⚙️ Configurable: Securely enter and store your Gemini API key via RuneLite’s plugin settings.
+
 ### UPCOMING:
 - 🛡️ Context-Aware: Queries include your stats and optional bank items for tailored suggestions.
 - 🔹 Markdown-Style Display: View responses in a clean, markdown-styled panel with headings, lists, and bold highlights.
@@ -32,12 +31,12 @@ You must bring your own API key for Gemini (Google). This plugin does not provid
 
 Why?
 
-- 💳 API keys are tied to your OpenAI/Google account.
-- 🚫 We do not store or share your key. It stays local on your machine.
+- 💳 API keys are tied to your Google account. (OpenAI upcoming)
+- 🚫 This plugin does not store or share your key. It stays local on your machine.
 
 🔑 How to Add Your API Key:
 - Go to Google [AI Studio](https://aistudio.google.com/app/apikey), click `Get API Key` and copy the key you just created
-- In RuneLite, go to Configuration (wrench icon).
+- In RuneLite, go to Configuration (🛠️ wrench icon).
 - Find RuneGPT Plugin under settings.
 - Enter your Google Gemini API Key.
 
@@ -46,7 +45,9 @@ Why?
 - Open the RuneGPT Panel from the sidebar.
 - Enter a question like:
     - "What’s the best setup for Barrows with my stats?"
-    - "Can I solo Zulrah with my current gear?"
+    - "Whats the best way to level my agility?"
+    - "Whats a good money making method basded on my stats?"
+    - "Can I solo Zulrah with my current gear?" (upcoming)
 
 ## 🛡️ Security
 
