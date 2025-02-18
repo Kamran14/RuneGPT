@@ -65,7 +65,7 @@ public class RuneGPT extends Plugin {
 	@Subscribe
 	public void onGameStateChanged(final GameStateChanged gameStateChanged) {
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Example says " + config.apiKey(), null);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "New API Key" + config.apiKey(), null);
 		}
 	}
 
