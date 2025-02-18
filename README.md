@@ -11,11 +11,14 @@ Ask Gemini about Old School RuneScape (OSRS) using your current player stats and
 ## 🚀 Features
 - 🖥️ Easy-to-Use Panel: Ask questions directly from RuneLite’s sidebar.
 - ⚙️ Configurable: Securely enter and store your Gemini API key via RuneLite’s plugin settings.
+- 📊 Stats: User stats are automatically accounted for to cater for every unique request.
 
 ### UPCOMING:
-- 🛡️ Context-Aware: Queries include your stats and optional bank items for tailored suggestions.
+- 🛡️ Context-Aware: Queries include your bank items for tailored suggestions.
+- ⚔️🤺 Combat Items: Bring the best items you got for the fight! 
 - 🔹 Markdown-Style Display: View responses in a clean, markdown-styled panel with headings, lists, and bold highlights.
-
+- 🔌 Wiki Integration: Suggestions will reflect up-to-date guides
+- 🔌 GE Integration: Some responses will have real-time prices (Will require osrs API key)
 ### Showcase
 Questions about stats and quests integrated into plugin.
 ![Time constraint](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/stats_response2.png)

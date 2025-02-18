@@ -57,7 +57,7 @@ public class RuneGPT extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		clientToolbar.removeNavigation(navButton);
-		log.info("Example stopped!");
+		log.info("RuneGPT stopped!");
 	}
 
 	@Subscribe
@@ -65,7 +65,6 @@ public class RuneGPT extends Plugin {
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
 			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "SYSTEM", "RuneGPT enabled", null);
 		}
-		log.info(String.format("Game state changed: %s", gameStateChanged.getGameState()));
 	}
 
 	@Provides
