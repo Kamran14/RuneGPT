@@ -1,5 +1,7 @@
 .gradle
 build
+.env
+.vscode/
 .idea/
 .project
 .settings/
