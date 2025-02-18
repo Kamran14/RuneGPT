@@ -3,12 +3,9 @@ package com.kamrant.runegpt;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
-import okhttp3.MediaType;
 
 @ConfigGroup("RuneGPTConfig")
-public interface RuneGPTConfig extends Config{
-	public static final String GPT_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=";
-	public static final String[] MEDIA_TYPE = {"Content-Type", MediaType.get("application/json").toString()};
+public interface RuneGPTConfig extends Config {
 
 	@ConfigItem(
 		keyName = "apiKey",
@@ -19,12 +16,23 @@ public interface RuneGPTConfig extends Config{
 		return "";
 	}
 
+ 	@ConfigItem(
+	   keyName = "temperature",
+	   name = "LLM Temperature",
+	   description = "Set the temperature for the LLM",
+	   position = 3
+	)
+	default double temperature() {
+	        return 0.7;
+	
+	}
+
 	@ConfigItem(
 		keyName = "enable",
 		name = "Set API Key",
 		description = "Toggle when you have updated your API Key"
 	)
-	default boolean enable(){
+	default boolean enable() {
 		return false;
 	}
 }

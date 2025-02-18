@@ -12,13 +12,13 @@ import okhttp3.Response;
 @Slf4j
 public class GPTClient {
 
-   private final String apiKey;
+   private final RuneGPTConfig config;
    private final OkHttpClient client;
    private static GPTClient instance;
    
    @Inject
    public GPTClient(final RuneGPTConfig config){
-      this.apiKey = config.apiKey();   
+      this.config = config;
       this.client = new OkHttpClient();
    }
 
@@ -32,7 +32,7 @@ public class GPTClient {
 
    public String queryGPT(final String prompt) {
       //TODO: model selection, instruction and context, user info
-      final Request request = GPTRequest.buildRequest(apiKey, prompt);
+      final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature());
 
       try (final Response response = client.newCall(request).execute()){
          
