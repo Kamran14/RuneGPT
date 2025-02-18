@@ -3,9 +3,7 @@ package com.kamrant.runegpt;
 import com.google.inject.Provides;
 import com.kamrant.runegpt.handler.GPTClient;
 import com.kamrant.runegpt.panels.GPTPanel;
-
 import java.awt.image.BufferedImage;
-
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;

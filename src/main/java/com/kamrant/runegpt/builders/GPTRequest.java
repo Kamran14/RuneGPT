@@ -1,18 +1,21 @@
 package com.kamrant.runegpt.builders;
 
-import okhttp3.Request;
-import okhttp3.RequestBody;
 import static com.kamrant.runegpt.RuneGPTConfig.GPT_URL;
 import static com.kamrant.runegpt.RuneGPTConfig.MEDIA_TYPE;
 import static net.runelite.http.api.RuneLiteAPI.JSON;
+
+import com.kamrant.runegpt.config.LLMConfig;
+import okhttp3.Request;
+import okhttp3.RequestBody;
 
 public class GPTRequest {
 
     public static Request buildRequest(final String apiKey, final String prompt){
       final double temp = 0.7;
+      final String fullPrompt = LLMConfig.INSTRUCTIONS + "\n\n" + prompt;
       final String body = String.format(
         "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\": \"%s\"}]}],\"generationConfig\":{\"temperature\": %f,\"topK\":40,\"topP\":0.95,\"maxOutputTokens\":1000,\"responseMimeType\":\"text/plain\"}}",
-        prompt,
+        fullPrompt,
         temp);
 
       final RequestBody requestBody = RequestBody.create(JSON, body);
@@ -23,6 +26,4 @@ public class GPTRequest {
             .post(requestBody)
             .build();
    }
-
-   
 }

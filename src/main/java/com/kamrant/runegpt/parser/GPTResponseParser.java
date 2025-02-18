@@ -2,7 +2,6 @@ package com.kamrant.runegpt.parser;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 

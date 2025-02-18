@@ -8,15 +8,13 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
-
 import com.google.inject.Inject;
 import com.kamrant.runegpt.handler.GPTClient;
-
+import com.kamrant.runegpt.service.PlayerStatsService;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.PluginPanel;
 
@@ -25,6 +23,10 @@ public class GPTPanel extends PluginPanel {
    private final JTextArea panelArea = new JTextArea();
    private final JTextField queryField = new JTextField();
    private final JButton submitBtn = new JButton("Submit");
+   
+   @Inject
+   private PlayerStatsService playerStatsService;
+   
    private final GPTClient gptClient;
 
    @Inject
@@ -67,7 +69,11 @@ public class GPTPanel extends PluginPanel {
       panelArea.setText("Querying Gemini...");
 
       new Thread(() -> {
-         final String response = gptClient.queryGPT(query);
+         // Fetch player stats
+         final String playerStats = playerStatsService.getPlayerStatsAsString();
+         
+         // Include player stats in the query
+         final String response = gptClient.queryGPT(query + "\nPlayer Stats: " + playerStats);
          SwingUtilities.invokeLater(() -> panelArea.setText(response));
       }).start();
    }
