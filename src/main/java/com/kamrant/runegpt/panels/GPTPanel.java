@@ -5,7 +5,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
-import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
@@ -28,18 +27,17 @@ public class GPTPanel extends PluginPanel {
    private Client client;
    private PlayerStats playerStats;
    private GPTClient gptClient;
-
+ 
    @Inject
-   public GPTPanel(Client client, GPTClient gptClient) {
+   public GPTPanel(final Client client, final GPTClient gptClient) {
       this.client = client;
       this.gptClient = gptClient;
       this.playerStats = new PlayerStats(client);
-
-
+    
       setLayout(new BorderLayout());
       setPreferredSize(new Dimension(300, 400));
 
-      JLabel label = new JLabel("Ask the GPT about OSRS:");
+      final JLabel label = new JLabel("Ask Gemini about OSRS:");
       label.setHorizontalAlignment(SwingConstants.CENTER);
       label.setFont(new Font("Arial", Font.BOLD, 14));
 
@@ -52,10 +50,10 @@ public class GPTPanel extends PluginPanel {
       panelArea.setEditable(false);
       panelArea.setLineWrap(true);
       panelArea.setWrapStyleWord(true);
-      JScrollPane scrollPane = new JScrollPane(panelArea);
+      final JScrollPane scrollPane = new JScrollPane(panelArea);
       scrollPane.setPreferredSize(new Dimension(280, 250));
 
-      JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
+      final JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
       inputPanel.add(label, BorderLayout.NORTH);
       inputPanel.add(queryField, BorderLayout.CENTER);
       inputPanel.add(submitBtn, BorderLayout.EAST);

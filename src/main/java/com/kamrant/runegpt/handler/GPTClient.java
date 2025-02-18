@@ -13,34 +13,33 @@ import okhttp3.Response;
 public class GPTClient {
 
    private final RuneGPTConfig config;
-   private final OkHttpClient httpClient;
+   private static OkHttpClient httpClient;
    private static GPTClient instance;
-   
+
    @Inject
-   public GPTClient(final RuneGPTConfig config){
+   public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient) {
       this.config = config;
-      this.httpClient = new OkHttpClient();
+      this.httpClient = httpClient;
    }
 
-   public static synchronized GPTClient getInstance(final RuneGPTConfig config){
-      if (instance == null){
-         instance = new GPTClient(config);
+   public static synchronized GPTClient getInstance(final RuneGPTConfig config) {
+      if (instance == null) {
+         instance = new GPTClient(config, httpClient.newBuilder().build());
       }
       return instance;
    }
 
-
    public String queryGPT(final String prompt) {
-      //TODO: model selection, instruction and context, user info
+      // TODO: model selection, instruction and context, user info
       final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature());
+   
+      try (final Response response = httpClient.newCall(request).execute()) {
 
-      try (final Response response = httpClient.newCall(request).execute()){
-         
          return GPTResponseParser.parseResponse(response);
       } catch (final Exception e) {
          log.error("Error with LLM ", e);
          return "Error with LLM " + e.getMessage();
       }
    }
-   
+
 }
