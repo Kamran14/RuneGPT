@@ -1,12 +1,27 @@
-🧠 RuneGPT
+# 🧠 RuneGPT
+
+<div style="text-align:center">
+    
+![RuneGPT](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/src/main/resources/com/kamrant/runegpt/logo.png)
+
+</div>
 
 Ask Gemini about Old School RuneScape (OSRS) using your current player stats and bank items!
 
-🚀 Features
-- 🛡️ Context-Aware: Queries include your stats and optional bank items for tailored suggestions.
+## 🚀 Features
 - 🖥️ Easy-to-Use Panel: Ask questions directly from RuneLite’s sidebar.
+- 🔹 Configurable API Key: Securely enter and store your LLM API key via RuneLite’s plugin settings.
+- ⚙️ Quick Setup: Just enter your API key and start asking—no complicated setup required.
+  
+### UPCOMING:
+- 🛡️ Context-Aware: Queries include your stats and optional bank items for tailored suggestions.
+- 🔹 Markdown-Style Display: View responses in a clean, markdown-styled panel with headings, lists, and bold highlights.
 
-🛠️ Setup
+### Showcase
+Asking a question about best bloodveld location when using cannons
+![Cannon Question](https://i.imgur.com/kaggxs8.png)
+
+## 🛠️ Setup
 1. Install the Plugin:
     - Add the plugin via the RuneLite Plugin Hub.
     - Enable RuneGPT from the RuneLite settings.
@@ -26,20 +41,19 @@ Why?
 - Find RuneGPT Plugin under settings.
 - Enter your Google Gemini API Key.
 
-✨ Usage
+## ✨ Usage
 
 - Open the RuneGPT Panel from the sidebar.
 - Enter a question like:
     - "What’s the best setup for Barrows with my stats?"
     - "Can I solo Zulrah with my current gear?"
 
-🛡️ Security
+## 🛡️ Security
 
 - Your API key is stored locally via RuneLite’s secure configuration.
 - No keys or data are sent anywhere except directly to the LLM provider.
 
-💸 Costs
+## 💸 Costs
 
 This plugin uses Google Gemini API, which currently offers free API access with generous usage limits. Check Google's terms for any updates on usage policies.
-
-Note: OpenAI and others require you to add a payment method whereas Google does not. Main factor in picking the service.
+### Note: OpenAI and others require you to add a payment method whereas Google does not. This was the main factor in picking the service.
