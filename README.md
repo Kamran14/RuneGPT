@@ -17,8 +17,9 @@ Ask Gemini about Old School RuneScape (OSRS) using your current player stats and
 - 🔹 Markdown-Style Display: View responses in a clean, markdown-styled panel with headings, lists, and bold highlights.
 
 ### Showcase
-Asking a question about best bloodveld location when using cannons
-![Cannon Question](https://i.imgur.com/kaggxs8.png)
+Questions about stats and quests integrated into plugin.
+![Time constraint](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/stats_response2.png)
+![Slayer Question](https://github.com/Kamran14/RuneGPT/blob/master/imgs/stats_response.png?raw=true)
 
 ## 🛠️ Setup
 1. Install the Plugin:
@@ -40,6 +41,7 @@ Why?
 - Find RuneGPT Plugin under settings.
 - Enter your Google Gemini API Key.
 
+![API config](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/config_panel.png)
 ## ✨ Usage
 
 - Open the RuneGPT Panel from the sidebar.
@@ -58,3 +60,10 @@ Why?
 
 This plugin uses Google Gemini API, which currently offers free API access with generous usage limits. Check Google's terms for any updates on usage policies.
 ### Note: OpenAI and others require you to add a payment method whereas Google does not. This was the main factor in picking the service.
+
+
+
+
+
+
+#### Yes RuneGPT is not an actual GPT since its not pre-trained. The goal can eventually load there, but I named this more on randomness.
