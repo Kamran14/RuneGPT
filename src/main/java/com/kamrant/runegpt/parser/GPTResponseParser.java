@@ -15,6 +15,7 @@ public class GPTResponseParser {
          return "GPT request failed: " + response.message();
       }
       
+      @SuppressWarnings("null")
       final JsonObject json = gson.fromJson(response.body().string(), JsonObject.class);
       return json.getAsJsonArray("candidates")
       .get(0).getAsJsonObject()

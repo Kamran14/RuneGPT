@@ -13,13 +13,13 @@ import okhttp3.Response;
 public class GPTClient {
 
    private final RuneGPTConfig config;
-   private final OkHttpClient client;
+   private final OkHttpClient httpClient;
    private static GPTClient instance;
    
    @Inject
    public GPTClient(final RuneGPTConfig config){
       this.config = config;
-      this.client = new OkHttpClient();
+      this.httpClient = new OkHttpClient();
    }
 
    public static synchronized GPTClient getInstance(final RuneGPTConfig config){
@@ -34,7 +34,7 @@ public class GPTClient {
       //TODO: model selection, instruction and context, user info
       final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature());
 
-      try (final Response response = client.newCall(request).execute()){
+      try (final Response response = httpClient.newCall(request).execute()){
          
          return GPTResponseParser.parseResponse(response);
       } catch (final Exception e) {

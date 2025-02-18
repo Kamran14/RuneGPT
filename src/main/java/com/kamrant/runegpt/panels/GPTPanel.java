@@ -14,24 +14,27 @@ import java.awt.Font;
 import java.awt.event.ActionEvent;
 import com.google.inject.Inject;
 import com.kamrant.runegpt.handler.GPTClient;
-import com.kamrant.runegpt.service.PlayerStatsService;
+import com.kamrant.runegpt.service.PlayerStats;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.client.ui.PluginPanel;
 
 @Slf4j
 public class GPTPanel extends PluginPanel {
    private final JTextArea panelArea = new JTextArea();
-   private final JTextField queryField = new JTextField();
+   private final JTextArea queryField = new JTextArea();
    private final JButton submitBtn = new JButton("Submit");
    
-   @Inject
-   private PlayerStatsService playerStatsService;
-   
-   private final GPTClient gptClient;
+   private Client client;
+   private PlayerStats playerStats;
+   private GPTClient gptClient;
 
    @Inject
-   public GPTPanel(final GPTClient gptClient) {
+   public GPTPanel(Client client, GPTClient gptClient) {
+      this.client = client;
       this.gptClient = gptClient;
+      this.playerStats = new PlayerStats(client);
+
 
       setLayout(new BorderLayout());
       setPreferredSize(new Dimension(300, 400));
@@ -41,6 +44,8 @@ public class GPTPanel extends PluginPanel {
       label.setFont(new Font("Arial", Font.BOLD, 14));
 
       queryField.setPreferredSize(new Dimension(250, 30));
+      queryField.setLineWrap(true);
+      queryField.setWrapStyleWord(true);
 
       submitBtn.addActionListener(this::onSubmit);
 
@@ -63,6 +68,7 @@ public class GPTPanel extends PluginPanel {
       final String query = queryField.getText().trim();
       if (query.isEmpty()) {
          panelArea.setText("Please enter a query.");
+         playerStats.getPlayerStatsAsString();
          return;
       }
 
@@ -70,10 +76,10 @@ public class GPTPanel extends PluginPanel {
 
       new Thread(() -> {
          // Fetch player stats
-         final String playerStats = playerStatsService.getPlayerStatsAsString();
+         final String statsConfig = playerStats.getPlayerStatsAsString();
          
          // Include player stats in the query
-         final String response = gptClient.queryGPT(query + "\nPlayer Stats: " + playerStats);
+         final String response = gptClient.queryGPT(query + "\nPlayer Stats: " + statsConfig);
          SwingUtilities.invokeLater(() -> panelArea.setText(response));
       }).start();
    }

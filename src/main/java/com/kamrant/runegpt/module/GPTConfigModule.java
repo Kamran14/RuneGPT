@@ -1,10 +1,11 @@
 package com.kamrant.runegpt.module;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.kamrant.runegpt.RuneGPTConfig;
 import com.kamrant.runegpt.handler.GPTClient;
-import com.kamrant.runegpt.service.PlayerStatsService;
+import com.kamrant.runegpt.service.PlayerStats;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
 
@@ -24,8 +25,8 @@ public class GPTConfigModule extends AbstractModule{
    }
 
    @Provides
-   PlayerStatsService providePlayerStatsService(final Client client) {
-      return new PlayerStatsService(client);
+   PlayerStats providePlayerStatsService(final Client client) {
+      return new PlayerStats(client);
    }
 
 }

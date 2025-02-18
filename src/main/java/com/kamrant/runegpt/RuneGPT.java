@@ -28,10 +28,10 @@ public class RuneGPT extends Plugin {
 	private Client client;
 
 	@Inject
-	private RuneGPTConfig config;
+	private GPTClient gptClient;
 
 	@Inject
-	private GPTClient gptClient;
+	private RuneGPTConfig config;
 
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
@@ -43,7 +43,7 @@ public class RuneGPT extends Plugin {
 			log.info("Key not set");
 		}
 		log.info("Starting plugin");
-		gptPanel = new GPTPanel(gptClient);
+		gptPanel = new GPTPanel(client, gptClient);
 		navButton = NavigationButton.builder()
 				.tooltip("RuneGPT")
 				.icon(getImg())
@@ -63,8 +63,9 @@ public class RuneGPT extends Plugin {
 	@Subscribe
 	public void onGameStateChanged(final GameStateChanged gameStateChanged) {
 		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "New API Key" + config.apiKey(), null);
+			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "SYSTEM", "RuneGPT enabled", null);
 		}
+		log.info(String.format("Game state changed: %s", gameStateChanged.getGameState()));
 	}
 
 	@Provides

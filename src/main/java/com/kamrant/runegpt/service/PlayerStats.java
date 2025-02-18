@@ -4,15 +4,19 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Skill;
 import javax.inject.Inject;
+
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.EnumMap;
 import java.util.Map;
 
-public class PlayerStatsService {
+@Slf4j
+public class PlayerStats {
 
     private final Client client;
 
     @Inject
-    public PlayerStatsService(final Client client) {
+    public PlayerStats(final Client client) {
         this.client = client;
     }
 
@@ -23,6 +27,7 @@ public class PlayerStatsService {
 
         final Map<Skill, Integer> stats = new EnumMap<>(Skill.class);
         for (final Skill skill : Skill.values()) {
+            log.info("Skill: " + skill.getName() + " Level: " + client.getRealSkillLevel(skill));
             stats.put(skill, client.getRealSkillLevel(skill));
         }
         return stats;
