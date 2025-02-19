@@ -9,10 +9,7 @@ import okhttp3.Response;
 public class GPTResponseParser {
    // Each service will require its own parser (e.g. ChatGPT, Deepseek, Gemini,
    // llama, etc.)
-
-   private static Gson gson = new Gson();
-
-   public static String parseResponse(final Response response) throws Exception {
+   public static String parseResponse(final Gson gson, final Response response) throws Exception {
       if (!response.isSuccessful() || response.body() == null) {
          return "GPT request failed: " + response.message();
       }

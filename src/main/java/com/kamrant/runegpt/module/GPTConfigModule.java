@@ -7,6 +7,7 @@ import com.kamrant.runegpt.handler.GPTClient;
 import com.kamrant.runegpt.service.PlayerStats;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import okhttp3.OkHttpClient;
 
 public class GPTConfigModule extends AbstractModule{
 
@@ -19,8 +20,8 @@ public class GPTConfigModule extends AbstractModule{
    }
 
    @Provides
-   GPTClient provideGTPService(final RuneGPTConfig config){
-      return GPTClient.getInstance(config);
+   GPTClient provideGTPService(final RuneGPTConfig config, final OkHttpClient httpClient){
+      return GPTClient.getInstance(config, httpClient);
    }
 
    @Provides

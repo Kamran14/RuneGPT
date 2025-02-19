@@ -17,7 +17,6 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
-import okhttp3.OkHttpClient;
 
 @Slf4j
 @PluginDescriptor(name = "RuneGPT")
@@ -34,9 +33,6 @@ public class RuneGPT extends Plugin {
 	@Inject
 	private RuneGPTConfig config;
 
-	@Inject
-	private OkHttpClient httpClient;
-
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
 	public static final String LOGO = "logo.png";
@@ -46,7 +42,7 @@ public class RuneGPT extends Plugin {
 		if (!config.enable()){
 			log.info("Key not set");
 		}
-		log.info("Starting plugin");
+		
 		gptPanel = new GPTPanel(client, gptClient);
 		navButton = NavigationButton.builder()
 				.tooltip("RuneGPT")

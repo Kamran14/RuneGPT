@@ -10,5 +10,5 @@ public class RuneGPTTest{
 		ExternalPluginManager.loadBuiltin(RuneGPT.class);
 		RuneLite.main(args);
 	}
-
+	
 }

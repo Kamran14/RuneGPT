@@ -11,7 +11,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
-import com.google.inject.Inject;
+import javax.inject.Inject;
 import com.kamrant.runegpt.handler.GPTClient;
 import com.kamrant.runegpt.service.PlayerStats;
 import lombok.extern.slf4j.Slf4j;
