@@ -4,14 +4,11 @@ import com.google.inject.Provides;
 import com.kamrant.runegpt.handler.GPTClient;
 import com.kamrant.runegpt.panels.GPTPanel;
 import java.awt.image.BufferedImage;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
@@ -31,7 +28,7 @@ public class RuneGPT extends Plugin {
 	private GPTClient gptClient;
 
 	@Inject
-	private RuneGPTConfig config;
+	private ScheduledExecutorService executorService;
 
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
@@ -39,11 +36,7 @@ public class RuneGPT extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
-		if (!config.enable()){
-			log.info("Key not set");
-		}
-		
-		gptPanel = new GPTPanel(client, gptClient);
+		gptPanel = new GPTPanel(client, gptClient, executorService);
 		navButton = NavigationButton.builder()
 				.tooltip("RuneGPT")
 				.icon(getImg())
@@ -57,16 +50,7 @@ public class RuneGPT extends Plugin {
 	@Override
 	protected void shutDown() throws Exception {
 		clientToolbar.removeNavigation(navButton);
-		log.info("RuneGPT stopped!");
 	}
-
-	@Subscribe
-	public void onGameStateChanged(final GameStateChanged gameStateChanged) {
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN) {
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "SYSTEM", "RuneGPT enabled", null);
-		}
-	}
-
 	@Provides
 	RuneGPTConfig provideConfig(final ConfigManager configManager) {
 		return configManager.getConfig(RuneGPTConfig.class);

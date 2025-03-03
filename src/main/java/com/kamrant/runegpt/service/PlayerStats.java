@@ -27,7 +27,6 @@ public class PlayerStats {
 
         final Map<Skill, Integer> stats = new EnumMap<>(Skill.class);
         for (final Skill skill : Skill.values()) {
-            log.info("Skill: " + skill.getName() + " Level: " + client.getRealSkillLevel(skill));
             stats.put(skill, client.getRealSkillLevel(skill));
         }
         return stats;

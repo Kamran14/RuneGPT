@@ -2,10 +2,8 @@ package com.kamrant.runegpt.parser;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.Response;
 
-@Slf4j
 public class GPTResponseParser {
    // Each service will require its own parser (e.g. ChatGPT, Deepseek, Gemini,
    // llama, etc.)

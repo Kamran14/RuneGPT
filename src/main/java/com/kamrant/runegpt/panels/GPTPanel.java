@@ -11,6 +11,7 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
+import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
 import com.kamrant.runegpt.handler.GPTClient;
 import com.kamrant.runegpt.service.PlayerStats;
@@ -24,16 +25,15 @@ public class GPTPanel extends PluginPanel {
    private final JTextArea queryField = new JTextArea();
    private final JButton submitBtn = new JButton("Submit");
    
-   private Client client;
    private PlayerStats playerStats;
    private GPTClient gptClient;
- 
+   private ScheduledExecutorService executorService;
+
    @Inject
-   public GPTPanel(final Client client, final GPTClient gptClient) {
-      this.client = client;
+   public GPTPanel(final Client client, final GPTClient gptClient, final ScheduledExecutorService executorService) { 
       this.gptClient = gptClient;
       this.playerStats = new PlayerStats(client);
-    
+      this.executorService = executorService;
       setLayout(new BorderLayout());
       setPreferredSize(new Dimension(300, 400));
 
@@ -70,15 +70,13 @@ public class GPTPanel extends PluginPanel {
          return;
       }
 
+      final String statsConfig = playerStats.getPlayerStatsAsString();
       panelArea.setText("Querying Gemini...");
+      
 
-      new Thread(() -> {
-         // Fetch player stats
-         final String statsConfig = playerStats.getPlayerStatsAsString();
-         
-         // Include player stats in the query
+      executorService.execute(() -> {
          final String response = gptClient.queryGPT(query + "\nPlayer Stats: " + statsConfig);
          SwingUtilities.invokeLater(() -> panelArea.setText(response));
-      }).start();
+      });
    }
 }

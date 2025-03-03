@@ -38,7 +38,7 @@ public class GPTClient {
 
    public String queryGPT(final String prompt) {
       // TODO: model selection, instruction and context, user info
-      final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature());
+      final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature(), gson);
       try (final Response response = httpClient.newCall(request).execute()) {
 
          return GPTResponseParser.parseResponse(gson, response);
