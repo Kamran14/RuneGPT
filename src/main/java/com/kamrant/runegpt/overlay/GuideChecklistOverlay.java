@@ -9,6 +9,7 @@ import com.kamrant.runegpt.service.GuideTracker;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.util.List;
 import javax.inject.Inject;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.overlay.OverlayPanel;
@@ -17,13 +18,16 @@ import net.runelite.client.ui.overlay.components.LineComponent;
 import net.runelite.client.ui.overlay.components.TitleComponent;
 
 /**
- * In-game checklist for the tracked guide: each item coloured by status (green ready, yellow equip it,
- * red missing / in bank), then where to go with live distance and direction.
+ * In-game checklist window for the tracked guide: the current step in orange/red (with completed step count),
+ * each item coloured by status (green ready, yellow equip it, red missing / in bank), and where to go with
+ * live distance and direction.
  */
 public class GuideChecklistOverlay extends OverlayPanel {
 
    private static final Color MUTED = new Color(190, 190, 190);
    private static final Color TARGET = new Color(80, 220, 255);
+   private static final Color CURRENT_STEP = new Color(255, 120, 55);
+   private static final Color DONE_GREEN = new Color(90, 200, 90);
    private static final int MAX_NAME_CHARS = 22;
 
    private final GuideTracker tracker;
@@ -34,7 +38,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
       this.tracker = tracker;
       this.config = config;
       setPosition(OverlayPosition.TOP_LEFT);
-      panelComponent.setPreferredSize(new Dimension(190, 0));
+      panelComponent.setPreferredSize(new Dimension(205, 0));
    }
 
    @Override
@@ -47,6 +51,30 @@ public class GuideChecklistOverlay extends OverlayPanel {
          .text(shorten(plan.getTitle(), 28))
          .color(ColorScheme.BRAND_ORANGE)
          .build());
+
+      final List<String> steps = plan.getSteps();
+      if (!steps.isEmpty()) {
+         final int cur = plan.getCurrentStep();
+         if (cur >= steps.size()) {
+            panelComponent.getChildren().add(LineComponent.builder()
+               .left("✓ All " + steps.size() + " steps done")
+               .leftColor(DONE_GREEN)
+               .build());
+         } else {
+            if (steps.size() > 1) {
+               panelComponent.getChildren().add(LineComponent.builder()
+                  .left("Step " + (cur + 1) + "/" + steps.size())
+                  .leftColor(CURRENT_STEP)
+                  .right(cur > 0 ? cur + " done ✓" : "")
+                  .rightColor(DONE_GREEN)
+                  .build());
+            }
+            panelComponent.getChildren().add(LineComponent.builder()
+               .left("▶ " + steps.get(cur))
+               .leftColor(CURRENT_STEP)
+               .build());
+         }
+      }
 
       int ready = 0;
       for (final GuideItem item : plan.getItems()) {
@@ -66,7 +94,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
             .left("Ready")
             .leftColor(MUTED)
             .right(ready + "/" + plan.getItems().size())
-            .rightColor(ready == plan.getItems().size() ? new Color(90, 200, 90) : MUTED)
+            .rightColor(ready == plan.getItems().size() ? DONE_GREEN : MUTED)
             .build());
       }
 

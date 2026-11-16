@@ -20,9 +20,9 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 
 /**
  * "Track guide" mode. Holds the accepted guide, re-checks its items whenever the inventory, equipment or
- * bank changes (green = ready, yellow = equip it, red = missing / in bank), and drives navigation:
- * a world map marker at the location and the in-game highlight on the NPC or location tile.
- * Listeners (the panel) are notified on the client thread with the updated plan, or null when stopped.
+ * bank changes (green = ready, yellow = equip it, red = missing / in bank), tracks which step the player
+ * is on, and drives navigation: a world map marker + route line, a minimap directional arrow, and the
+ * in-game highlight/path on the NPC or location tile.
  */
 @Singleton
 public class GuideTracker {
@@ -60,6 +60,18 @@ public class GuideTracker {
       return active;
    }
 
+   /** The world map target of the tracked guide (location first, else NPC), or null. */
+   public WorldTarget getMapTarget() {
+      final GuidePlan plan = active;
+      if (plan == null) {
+         return null;
+      }
+      final WorldTarget location = plan.getLocation();
+      final WorldTarget npc = plan.getNpc();
+      return location != null && location.getPoint() != null ? location
+         : npc != null && npc.getPoint() != null ? npc : null;
+   }
+
    /** Start tracking (replaces any current guide). Safe from any thread. */
    public void start(final GuidePlan plan) {
       clientThread.invokeLater(() -> {
@@ -67,6 +79,33 @@ public class GuideTracker {
          active = plan;
          refreshItems();
          setNavigation(plan);
+      });
+   }
+
+   /** Advance to the next step in the tracked guide. Safe from any thread. */
+   public void nextStep() {
+      final GuidePlan plan = active;
+      if (plan != null && !plan.getSteps().isEmpty()) {
+         setStep(Math.min(plan.getSteps().size(), plan.getCurrentStep() + 1));
+      }
+   }
+
+   /** Move back one step in the tracked guide. Safe from any thread. */
+   public void previousStep() {
+      final GuidePlan plan = active;
+      if (plan != null && !plan.getSteps().isEmpty()) {
+         setStep(Math.max(0, plan.getCurrentStep() - 1));
+      }
+   }
+
+   /** Set the active step index (0-based) on the tracked guide. Safe from any thread. */
+   public void setStep(final int stepIndex) {
+      clientThread.invokeLater(() -> {
+         final GuidePlan plan = active;
+         if (plan != null) {
+            active = plan.withCurrentStep(stepIndex);
+            notifyListeners();
+         }
       });
    }
 
@@ -116,14 +155,19 @@ public class GuideTracker {
       final WorldTarget mapTarget = location != null && location.getPoint() != null ? location
          : npc != null && npc.getPoint() != null ? npc : null;
 
-      highlighter.setTarget(npc == null ? null : npc.getName(), mapTarget == null ? null : mapTarget.getPoint());
+      highlighter.setTarget(
+         npc == null ? null : npc.getName(),
+         mapTarget == null ? null : mapTarget.getName(),
+         mapTarget == null ? null : mapTarget.getPoint());
 
       if (mapTarget != null) {
          final WorldPoint point = mapTarget.getPoint();
+         final String label = "RuneGPT: " + mapTarget.getName() + (mapTarget.isApproximate() ? " (approximate)" : "");
          mapPoint = WorldMapPoint.builder()
             .worldPoint(point)
+            .name(mapTarget.getName())
             .image(MapMarkerImage.create(mapTarget.isApproximate()))
-            .tooltip("RuneGPT: " + mapTarget.getName() + (mapTarget.isApproximate() ? " (approximate)" : ""))
+            .tooltip(label)
             .snapToEdge(true)
             .jumpOnClick(true)
             .target(point)
@@ -149,13 +193,11 @@ public class GuideTracker {
 
    /** Distance/direction from the player to the guide's target, e.g. "~120 tiles north". Client thread. */
    public String directionText() {
-      final GuidePlan plan = active;
-      if (plan == null || client.getLocalPlayer() == null) {
+      final WorldTarget t = getMapTarget();
+      if (t == null || client.getLocalPlayer() == null) {
          return "";
       }
-      final WorldTarget t = plan.getLocation() != null && plan.getLocation().getPoint() != null ? plan.getLocation()
-         : plan.getNpc() != null && plan.getNpc().getPoint() != null ? plan.getNpc() : null;
-      return t == null ? "" : Navigation.describe(client.getLocalPlayer().getWorldLocation(), t.getPoint());
+      return Navigation.describe(client.getLocalPlayer().getWorldLocation(), t.getPoint());
    }
 
    /** Client thread: plugin shutdown. */

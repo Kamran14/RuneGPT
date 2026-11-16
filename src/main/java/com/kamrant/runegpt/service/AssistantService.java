@@ -51,7 +51,7 @@ public class AssistantService {
          // Not our JSON shape: show it as plain Markdown rather than failing.
          answer = ResponseParser.stripFences(reply.getText());
       } else {
-         guide = verifier.verify(ResponseParser.object(json, "guide"), snapshot.holdings());
+         guide = verifier.verify(ResponseParser.object(json, "guide"), snapshot);
       }
       if (answer.isEmpty() && guide != null) {
          answer = "### " + guide.getTitle();

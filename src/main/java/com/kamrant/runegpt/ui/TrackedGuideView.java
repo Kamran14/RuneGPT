@@ -4,8 +4,12 @@ import com.kamrant.runegpt.model.GuidePlan;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.function.IntConsumer;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -14,8 +18,9 @@ import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
- * Pinned panel for the guide being tracked: "Tracking: title  3/5 ready" with Stop, and (expanded) the
- * live colour-coded checklist plus where to go. Hidden when nothing is tracked.
+ * Pinned panel for the guide being tracked: "Tracking: title", step & item progress summary, Stop, and
+ * (expanded) the colour-coded steps (completed green, current orange/red), live item checklist, Prev/Next
+ * step controls and where to go. Hidden when nothing is tracked.
  */
 public class TrackedGuideView extends RoundedPanel {
 
@@ -23,11 +28,13 @@ public class TrackedGuideView extends RoundedPanel {
    private final JLabel summary = new JLabel();
    private final JLabel chevron = new JLabel();
    private final JPanel body = new JPanel(new BorderLayout());
+   private final IntConsumer onSelectStep;
    private boolean expanded = true;
    private GuidePlan plan;
 
-   public TrackedGuideView(final Runnable onStop) {
+   public TrackedGuideView(final Runnable onStop, final IntConsumer onSelectStep) {
       super(new BorderLayout(0, 6), new Color(28, 40, 46), 12);
+      this.onSelectStep = onSelectStep;
       setOutline(new Color(80, 220, 255, 120));
       setBorder(new EmptyBorder(7, 8, 8, 8));
 
@@ -71,7 +78,7 @@ public class TrackedGuideView extends RoundedPanel {
       setVisible(false);
    }
 
-   /** Show the tracked plan (with fresh item statuses), or hide when null. */
+   /** Show the tracked plan (with fresh item statuses and step index), or hide when null. */
    public void setPlan(final GuidePlan plan) {
       this.plan = plan;
       render();
@@ -86,11 +93,35 @@ public class TrackedGuideView extends RoundedPanel {
       title.setText("Tracking: " + plan.getTitle());
       title.setToolTipText(plan.getTitle());
       final String ready = GuidePlanView.readySummary(plan);
-      summary.setText(ready.isEmpty() ? "Follow the steps below" : ready + "  ·  see overlay in game");
+      summary.setText(ready.isEmpty() ? "See overlay & map guider in game" : ready + "  ·  overlay active");
       chevron.setText(expanded ? "▴" : "▾");
       body.removeAll();
       if (expanded) {
-         body.add(GuidePlanView.build(plan, false, null), BorderLayout.CENTER);
+         final JPanel col = new JPanel();
+         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
+         col.setOpaque(false);
+         col.add(GuidePlanView.build(plan, true, null, onSelectStep));
+
+         if (plan.getSteps().size() > 1) {
+            col.add(Box.createVerticalStrut(6));
+            final int cur = plan.getCurrentStep();
+            final int total = plan.getSteps().size();
+            final JButton prev = GuidesView.pillButton("◀ Prev");
+            prev.setEnabled(cur > 0);
+            prev.addActionListener(e -> onSelectStep.accept(Math.max(0, cur - 1)));
+
+            final JButton next = GuidesView.pillButton(cur < total ? "Done · Next ▶" : "All done ✓");
+            next.setEnabled(cur < total);
+            next.addActionListener(e -> onSelectStep.accept(Math.min(total, cur + 1)));
+
+            final JPanel stepButtons = new JPanel(new GridLayout(1, 2, 4, 0));
+            stepButtons.setOpaque(false);
+            stepButtons.setAlignmentX(LEFT_ALIGNMENT);
+            stepButtons.add(prev);
+            stepButtons.add(next);
+            col.add(stepButtons);
+         }
+         body.add(col, BorderLayout.CENTER);
       }
       body.setVisible(expanded);
       revalidate();

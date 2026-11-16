@@ -44,13 +44,19 @@ public final class Prompts {
          + "method, money maker, minigame or trip setup); otherwise null. Shape:\n"
          + "{\"title\": \"short name, e.g. Blue dragons in Taverley Dungeon\", "
          + "\"steps\": [\"imperative steps, at most 6, each under 15 words\"], "
+         + "\"current_step\": 1, "
          + "\"required_items\": [{\"name\": \"exact item name\", \"quantity\": 1}], "
          + "\"recommended_gear\": [{\"name\": \"exact item name\", \"slot\": \"head|cape|neck|ammo|weapon|body|"
          + "shield|legs|hands|feet|ring\"}], "
          + "\"location\": {\"name\": \"exact place name\", \"x\": 0, \"y\": 0, \"plane\": 0}, "
          + "\"npc\": \"exact NPC or monster name, or empty\"}\n"
-         + "- required_items: things to carry (food, potions, runes, tools, quest items). recommended_gear: "
-         + "things to wear or wield, at most one per slot, matched to the player's levels and what they own.\n"
+         + "- current_step: 1-based index in steps of the step the player is on right now. Steps before current_step "
+         + "are stages they have already completed (check their quest/task progress, items, location and question). "
+         + "For a quest or multi-part activity, list the main stages in order and set current_step to the first "
+         + "incomplete stage (e.g. 6 if steps 1-5 are already completed).\n"
+         + "- required_items: things to carry for current_step onward (don't list items only needed for already-"
+         + "completed steps). recommended_gear: things to wear or wield, at most one per slot, matched to the "
+         + "player's levels and what they own.\n"
          + "- location x/y/plane: your best estimate of the OSRS world coordinates of the spot; omit x and y "
          + "if you don't know them.\n";
 
@@ -74,13 +80,14 @@ public final class Prompts {
          + "start it. Reply with JSON exactly like:\n"
          + "{\"progress\": \"where they likely are, one sentence\", "
          + "\"confidence\": \"high|medium|low\", "
+         + "\"completed_steps\": [\"up to 4 major steps already completed before the current step\"], "
          + "\"next_step\": \"what to do now, 1-2 sentences, include dialogue options if the wiki lists them\", "
          + "\"location\": \"where to go, as named in the wiki\", "
          + "\"npc\": \"exact name of the NPC to talk to next as written in the wiki, or empty\", "
          + "\"items\": [{\"name\": \"exact item name from the wiki\", \"quantity\": 1}], "
          + "\"then\": [\"up to 3 following steps, short\"], "
          + "\"tip\": \"one short tip from the wiki, or empty\"}\n"
-         + "Only list items needed for the next few steps.";
+         + "Only list items needed for next_step and the following steps, never for completed_steps.";
 
    public static final String QUEST_WIKI_HEADER = "\nOSRS WIKI TEXT (the only source you may use):\n";
    public static final String QUEST_COMPLETED_STEP = "The player says they just completed this step: %s\n";

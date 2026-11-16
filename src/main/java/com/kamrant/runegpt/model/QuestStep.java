@@ -14,6 +14,7 @@ public final class QuestStep {
    private String message;
    private String progress = "";
    private String confidence = "";
+   private List<String> completedSteps = Collections.emptyList();
    private String nextStep = "";
    private WorldTarget location;
    private WorldTarget npc;
@@ -39,12 +40,18 @@ public final class QuestStep {
       return s;
    }
 
-   /** The step as a trackable guide: next step + following steps, items, location and NPC. */
+   /**
+    * The step as a trackable guide: completed steps (green), then the current step (orange/red), then
+    * upcoming steps (muted), plus items, location and NPC.
+    */
    public GuidePlan toGuidePlan() {
-      final List<String> steps = new ArrayList<>();
-      steps.add(nextStep);
+      final List<String> steps = new ArrayList<>(completedSteps);
+      final int activeIdx = steps.size();
+      if (!nextStep.isEmpty()) {
+         steps.add(nextStep);
+      }
       steps.addAll(then);
-      return new GuidePlan(quest, steps, items, location, npc, removedUnverified);
+      return new GuidePlan(quest, steps, activeIdx, items, location, npc, removedUnverified);
    }
 
    public QuestStepKind getKind() {
@@ -98,6 +105,15 @@ public final class QuestStep {
 
    public QuestStep setConfidence(final String confidence) {
       this.confidence = confidence;
+      return this;
+   }
+
+   public List<String> getCompletedSteps() {
+      return completedSteps;
+   }
+
+   public QuestStep setCompletedSteps(final List<String> completedSteps) {
+      this.completedSteps = completedSteps;
       return this;
    }
 

@@ -4,6 +4,8 @@ import com.google.inject.Injector;
 import com.google.inject.Provides;
 import com.kamrant.runegpt.overlay.GuideChecklistOverlay;
 import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
+import com.kamrant.runegpt.overlay.WorldMapGuideOverlay;
+import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
@@ -15,6 +17,7 @@ import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
@@ -55,7 +58,13 @@ public class RuneGPT extends Plugin {
 	private ClientThread clientThread;
 
 	@Inject
+	private Client client;
+
+	@Inject
 	private BankCache bankCache;
+
+	@Inject
+	private QuestJournalCache questJournalCache;
 
 	@Inject
 	private TargetHighlighter targetHighlighter;
@@ -81,6 +90,9 @@ public class RuneGPT extends Plugin {
 	@Inject
 	private GuideChecklistOverlay guideChecklistOverlay;
 
+	@Inject
+	private WorldMapGuideOverlay worldMapGuideOverlay;
+
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
 
@@ -101,6 +113,7 @@ public class RuneGPT extends Plugin {
 		gptPanel.checkKeys();
 		overlayManager.add(targetHighlightOverlay);
 		overlayManager.add(guideChecklistOverlay);
+		overlayManager.add(worldMapGuideOverlay);
 		gptPanel.refreshGuides();
 	}
 
@@ -109,6 +122,7 @@ public class RuneGPT extends Plugin {
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(targetHighlightOverlay);
 		overlayManager.remove(guideChecklistOverlay);
+		overlayManager.remove(worldMapGuideOverlay);
 		// Stop background threads (panel worker, wiki lookups) and UI timers.
 		gptPanel.shutdown();
 		guideVerifier.shutdown();
@@ -119,6 +133,7 @@ public class RuneGPT extends Plugin {
 		});
 		gptClient.clearConversation();
 		bankCache.clear();
+		questJournalCache.clear();
 		gptPanel = null;
 		navButton = null;
 	}
@@ -157,8 +172,9 @@ public class RuneGPT extends Plugin {
 			gptPanel.refreshGuides();
 		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN) {
-			// Bank contents belong to the account that just logged out.
+			// Bank and quest journal contents belong to the account that just logged out.
 			bankCache.clear();
+			questJournalCache.clear();
 		}
 	}
 
@@ -177,6 +193,7 @@ public class RuneGPT extends Plugin {
 	@Subscribe
 	public void onGameTick(final GameTick tick) {
 		targetHighlighter.onTick();
+		questJournalCache.updateFromClient(client);
 	}
 
 	@Provides

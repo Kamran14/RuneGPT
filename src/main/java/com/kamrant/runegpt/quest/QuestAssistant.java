@@ -170,6 +170,7 @@ public class QuestAssistant {
          .setBankKnown(player.isBankKnown())
          .setProgress(ResponseParser.str(json, "progress"))
          .setConfidence(ResponseParser.str(json, "confidence").toLowerCase(Locale.ROOT))
+         .setCompletedSteps(ResponseParser.strings(json, "completed_steps", 4))
          .setNextStep(nextStep)
          .setLocation(location)
          .setNpc(npc)
@@ -241,6 +242,7 @@ public class QuestAssistant {
             if (state != null) {
                sb.append("player status: ").append(state.name().toLowerCase(Locale.ROOT).replace('_', ' ')).append('\n');
             }
+            sb.append(player.questProgressDetails(quest));
             if (main == null) {
                continue;
             }
@@ -285,6 +287,7 @@ public class QuestAssistant {
       final StringBuilder sb = new StringBuilder();
       sb.append("Quest: ").append(quest).append(" (status: ")
          .append(state == null ? "unknown" : state.name().toLowerCase(Locale.ROOT).replace('_', ' ')).append(")\n");
+      sb.append(p.questProgressDetails(quest));
       sb.append("Player location: ").append(p.locationText()).append('\n');
       sb.append("Inventory: ").append(PlayerSnapshot.items(p.getInventory())).append('\n');
       sb.append("Wearing: ").append(PlayerSnapshot.items(p.getEquipment())).append('\n');

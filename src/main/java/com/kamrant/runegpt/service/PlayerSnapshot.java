@@ -3,12 +3,15 @@ package com.kamrant.runegpt.service;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.ItemSource;
 import com.kamrant.runegpt.model.OwnedGear;
+import com.kamrant.runegpt.quest.QuestJournalCache;
+import com.kamrant.runegpt.quest.QuestProgress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import net.runelite.api.Client;
@@ -44,6 +47,10 @@ public final class PlayerSnapshot {
    private int totalLevel;
    private final List<String> questsInProgress = new ArrayList<>();
    private final Map<String, QuestState> questStates = new LinkedHashMap<>();
+   private final Map<String, Double> questRatios = new LinkedHashMap<>();
+   private final Map<String, String> questStageTexts = new LinkedHashMap<>();
+   private final Map<String, Map<String, Boolean>> questSubTasks = new LinkedHashMap<>();
+   private QuestJournalCache journalCache;
    private int questsCompleted;
    private WorldPoint location;
    private final List<String> nearbyNpcs = new ArrayList<>();
@@ -59,12 +66,14 @@ public final class PlayerSnapshot {
    }
 
    /** Call on the client thread. */
-   public static PlayerSnapshot capture(final Client client, final ItemManager itemManager, final BankCache bankCache) {
+   public static PlayerSnapshot capture(final Client client, final ItemManager itemManager, final BankCache bankCache,
+      final QuestJournalCache journalCache) {
       if (client.getGameState() != GameState.LOGGED_IN) {
          return LOGGED_OUT;
       }
       final PlayerSnapshot s = new PlayerSnapshot();
       s.loggedIn = true;
+      s.journalCache = journalCache;
       for (final Skill skill : Skill.values()) {
          s.levels.put(skill, client.getRealSkillLevel(skill));
       }
@@ -85,6 +94,11 @@ public final class PlayerSnapshot {
             s.questsCompleted++;
          }
       }
+
+      if (journalCache != null) {
+         journalCache.updateFromClient(client);
+      }
+      QuestProgress.captureFromClient(client, s.questStates, s.questRatios, s.questStageTexts, s.questSubTasks);
 
       // Nearby NPC names, closest first: strong hints about where the player is.
       if (local != null) {
@@ -249,6 +263,55 @@ public final class PlayerSnapshot {
       return new ItemHoldings(inventory, equipment, bank, bankKnown, loggedIn);
    }
 
+   /**
+    * Detailed in-game stage breakdown for any quest (varbit/varp stage vs game-cache completion threshold,
+    * sub-task varbits, RFD subquests, and cached in-game Quest Journal strikethrough/active lines).
+    */
+   public String questProgressDetails(final String questName) {
+      if (questName == null || questName.isEmpty()) {
+         return "";
+      }
+      final StringBuilder sb = new StringBuilder();
+      final String stage = questStageTexts.get(questName);
+      if (stage != null && !stage.isEmpty()) {
+         sb.append("In-game progress for ").append(questName)
+            .append(" (from game varbits; COMPLETED stages are already done): ")
+            .append(stage).append('\n');
+      }
+      if (questName.toLowerCase(Locale.ROOT).startsWith("recipe for disaster")) {
+         sb.append("Recipe for Disaster subquest states:\n");
+         questStates.forEach((name, state) -> {
+            if (name.startsWith("Recipe for Disaster - ")) {
+               sb.append("- ").append(name).append(": ")
+                  .append(state.name().toLowerCase(Locale.ROOT).replace('_', ' ')).append('\n');
+            }
+         });
+      }
+      if (journalCache != null) {
+         final List<String> done = journalCache.completedLines(questName);
+         final List<String> active = journalCache.activeLines(questName);
+         if (!done.isEmpty()) {
+            sb.append("Completed in-game Quest Journal lines: ")
+               .append(String.join(" | ", done)).append('\n');
+         }
+         if (!active.isEmpty()) {
+            sb.append("Active in-game Quest Journal lines: ")
+               .append(String.join(" | ", active)).append('\n');
+         }
+      }
+      return sb.toString();
+   }
+
+   /**
+    * Dynamically resolves the 0-based index of the current active step in {@code steps} for any quest,
+    * combining the AI's {@code aiStepOneBased}, cached Quest Journal lines, sub-varbits, owned quest items,
+    * and the quest's game-cache progress ratio.
+    */
+   public int resolveCurrentStep(final String title, final List<String> steps, final int aiStepOneBased) {
+      return QuestProgress.resolveCurrentStep(title, steps, aiStepOneBased,
+         questStates, questRatios, questSubTasks, journalCache, holdings());
+   }
+
    /** Lowest skill, ties broken by enum order. Null when logged out. */
    public Skill lowestSkill() {
       Skill lowest = null;
@@ -299,8 +362,22 @@ public final class PlayerSnapshot {
       }
       sb.append('\n');
       sb.append("Quests completed: ").append(questsCompleted).append('\n');
-      sb.append("Quests in progress: ")
-         .append(questsInProgress.isEmpty() ? "none" : String.join(", ", questsInProgress)).append('\n');
+      if (questsInProgress.isEmpty()) {
+         sb.append("Quests in progress: none\n");
+      } else {
+         final List<String> withStages = new ArrayList<>();
+         for (final String q : questsInProgress) {
+            final String st = questStageTexts.get(q);
+            withStages.add(st != null && !st.contains("\n") ? q + " (" + st + ")" : q);
+         }
+         sb.append("Quests in progress: ").append(String.join(", ", withStages)).append('\n');
+         for (final String q : questsInProgress) {
+            final String st = questStageTexts.get(q);
+            if (st != null && st.contains("\n")) {
+               sb.append(questProgressDetails(q));
+            }
+         }
+      }
       sb.append("Location: ").append(locationText()).append('\n');
       sb.append("Wearing: ").append(items(equipment)).append('\n');
       sb.append("Inventory: ").append(items(inventory)).append('\n');

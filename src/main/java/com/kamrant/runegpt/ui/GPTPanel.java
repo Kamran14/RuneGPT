@@ -7,6 +7,7 @@ import com.kamrant.runegpt.model.GearResult;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.QuestStep;
 import com.kamrant.runegpt.quest.QuestAssistant;
+import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.service.AssistantService;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GearOptimizer;
@@ -47,6 +48,7 @@ public class GPTPanel extends PluginPanel {
    private final ClientThread clientThread;
    private final ItemManager itemManager;
    private final BankCache bankCache;
+   private final QuestJournalCache journalCache;
    private final AssistantService assistant;
    private final QuestAssistant questAssistant;
    private final GearOptimizer gearOptimizer;
@@ -84,14 +86,15 @@ public class GPTPanel extends PluginPanel {
 
    @Inject
    public GPTPanel(final Client client, final ClientThread clientThread, final ItemManager itemManager,
-      final BankCache bankCache, final GPTClient gptClient, final AssistantService assistant,
-      final GuideStore guideStore, final QuestAssistant questAssistant, final GearOptimizer gearOptimizer,
-      final GuideTracker tracker) {
+      final BankCache bankCache, final QuestJournalCache journalCache, final GPTClient gptClient,
+      final AssistantService assistant, final GuideStore guideStore, final QuestAssistant questAssistant,
+      final GearOptimizer gearOptimizer, final GuideTracker tracker) {
       super(false);
       this.client = client;
       this.clientThread = clientThread;
       this.itemManager = itemManager;
       this.bankCache = bankCache;
+      this.journalCache = journalCache;
       this.assistant = assistant;
       this.questAssistant = questAssistant;
       this.gearOptimizer = gearOptimizer;
@@ -105,7 +108,7 @@ public class GPTPanel extends PluginPanel {
       guidesView = new GuidesView(guideStore, this::ask, (quest, picks) -> questStep(quest, picks, null),
          this::questRequirements, this::gearOptimize);
       chatView = new ChatView(text -> ask(text, text), gptClient::clearConversation);
-      trackedView = new TrackedGuideView(tracker::stop);
+      trackedView = new TrackedGuideView(tracker::stop, tracker::setStep);
       tracker.setListener(plan -> SwingUtilities.invokeLater(() -> trackedView.setPlan(plan)));
 
       final JPanel trackedWrap = new JPanel(new BorderLayout());
@@ -170,7 +173,7 @@ public class GPTPanel extends PluginPanel {
       clientThread.invokeLater(() -> {
          PlayerSnapshot snapshot;
          try {
-            snapshot = PlayerSnapshot.capture(client, itemManager, bankCache);
+            snapshot = PlayerSnapshot.capture(client, itemManager, bankCache, journalCache);
          } catch (final RuntimeException e) {
             log.warn("RuneGPT: couldn't read player data", e);
             snapshot = PlayerSnapshot.LOGGED_OUT;
@@ -224,6 +227,10 @@ public class GPTPanel extends PluginPanel {
       withSnapshot(snapshot -> {
          final QuestStep step = questAssistant.nextStep(quest, picks == null ? Collections.emptyMap() : picks,
             snapshot, completedStep);
+         if (completedStep != null && step.getKind() == com.kamrant.runegpt.model.QuestStepKind.STEP
+            && tracker.getActive() != null && step.getQuest().equalsIgnoreCase(tracker.getActive().getTitle())) {
+            tracker.start(step.toGuidePlan());
+         }
          SwingUtilities.invokeLater(() ->
             chatView.addCardMessage(QuestStepCard.header(step), QuestStepCard.build(step, actions)));
       });

@@ -53,12 +53,14 @@ public class GuideVerifier {
    }
 
    /** Blocking (wiki lookups). Returns null if the guide is empty after verification. */
-   public GuidePlan verify(final JsonObject guide, final ItemHoldings holdings) {
+   public GuidePlan verify(final JsonObject guide, final PlayerSnapshot snapshot) {
       if (guide == null) {
          return null;
       }
+      final ItemHoldings holdings = snapshot.holdings();
       final String title = ResponseParser.str(guide, "title");
       final List<String> steps = ResponseParser.strings(guide, "steps", MAX_STEPS);
+      final int currentStep = snapshot.resolveCurrentStep(title, steps, ResponseParser.intOr(guide, "current_step", 1));
 
       // Requested items, de-duplicated by name: gear first so a worn item isn't also listed as carry.
       final Map<String, GuideItem> requested = new LinkedHashMap<>();
@@ -115,7 +117,7 @@ public class GuideVerifier {
       }
 
       final List<GuideItem> resolved = prices.withPrices(ItemStatusResolver.resolve(items, holdings));
-      final GuidePlan plan = new GuidePlan(title.isEmpty() ? "Guide" : title, steps,
+      final GuidePlan plan = new GuidePlan(title.isEmpty() ? "Guide" : title, steps, currentStep,
          resolved, location, npc, removed);
       return plan.isEmpty() ? null : plan;
    }
