@@ -41,13 +41,15 @@ public class GuideVerifier {
    private static final int MAX_NPC_LOCATION_DISTANCE = 200;
 
    private final WikiLookup wiki;
+   private final PriceService prices;
    // Created on first use and shut down by the plugin's shutDown(); this class is a Guice singleton
    // that outlives a plugin stop/start, so a stopped pool is replaced the next time it's needed.
    private ExecutorService pool;
 
    @Inject
-   public GuideVerifier(final WikiLookup wiki) {
+   public GuideVerifier(final WikiLookup wiki, final PriceService prices) {
       this.wiki = wiki;
+      this.prices = prices;
    }
 
    /** Blocking (wiki lookups). Returns null if the guide is empty after verification. */
@@ -112,8 +114,9 @@ public class GuideVerifier {
          npc = WorldTarget.named(npc.getName());
       }
 
+      final List<GuideItem> resolved = prices.withPrices(ItemStatusResolver.resolve(items, holdings));
       final GuidePlan plan = new GuidePlan(title.isEmpty() ? "Guide" : title, steps,
-         ItemStatusResolver.resolve(items, holdings), location, npc, removed);
+         resolved, location, npc, removed);
       return plan.isEmpty() ? null : plan;
    }
 

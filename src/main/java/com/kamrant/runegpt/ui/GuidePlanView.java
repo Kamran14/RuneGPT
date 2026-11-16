@@ -4,6 +4,7 @@ import com.kamrant.runegpt.model.GuideItem;
 import com.kamrant.runegpt.model.GuideItemKind;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.WorldTarget;
+import com.kamrant.runegpt.service.PriceService;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -22,7 +23,8 @@ import net.runelite.client.ui.FontManager;
 
 /**
  * Renders a {@link GuidePlan}: numbered steps, then a colour-coded checklist split into what to bring and
- * what to wear (green ready, yellow equip it, red missing / in bank), then where to go and who to find.
+ * what to wear (green ready, yellow equip it, red missing / in bank) with live GE prices, then where to go
+ * and who to find.
  */
 public final class GuidePlanView {
 
@@ -65,6 +67,11 @@ public final class GuidePlanView {
          add(p, label("Bring"));
          bring.forEach(item -> add(p, itemRow(item)));
       }
+      final long missingGp = PriceService.missingCost(plan.getItems());
+      if (missingGp > 0) {
+         add(p, Box.createVerticalStrut(3));
+         add(p, small("Missing on GE: ~" + PriceService.formatShort(missingGp)));
+      }
 
       if (plan.getLocation() != null || plan.getNpc() != null) {
          add(p, Box.createVerticalStrut(4));
@@ -106,9 +113,10 @@ public final class GuidePlanView {
       dot.setBorder(new EmptyBorder(0, 0, 0, 6));
 
       final String name = (item.getQuantity() > 1 ? item.getQuantity() + " x " : "") + item.getName();
+      final String priceNote = item.getTotalPrice() > 0 ? " · " + PriceService.formatShort(item.getTotalPrice()) : "";
       final HtmlPane text = new HtmlPane(ChatView.TEXT);
       text.setHtml(MarkdownRenderer.escape(name) + " <span class=\"muted\">"
-         + MarkdownRenderer.escape(item.getStatus().getLabel()) + "</span>");
+         + MarkdownRenderer.escape(item.getStatus().getLabel() + priceNote) + "</span>");
       text.setForeground(color.brighter());
 
       final JPanel row = new JPanel(new BorderLayout());

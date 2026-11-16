@@ -49,6 +49,8 @@ public class GuidesView extends JPanel {
    private final BiConsumer<String, Map<String, String>> onQuestStep;
    /** (quest name, prompt) for "Requirements for quest", which checks the quest exists and adds wiki data. */
    private final BiConsumer<String, String> onQuestRequirements;
+   /** Monster/boss name for "Best gear I own for ...", which runs the gear optimizer from owned items. */
+   private final BiConsumer<String, Map<String, String>> onGearOptimize;
 
    private final Map<GuideCategory, CollapsibleSection> sections = new EnumMap<>(GuideCategory.class);
    // Session-only UI state: quick choices per guide and which cards are expanded.
@@ -58,11 +60,13 @@ public class GuidesView extends JPanel {
    private PlayerSnapshot snapshot = PlayerSnapshot.LOGGED_OUT;
 
    public GuidesView(final GuideStore store, final BiConsumer<String, String> onAsk,
-      final BiConsumer<String, Map<String, String>> onQuestStep, final BiConsumer<String, String> onQuestRequirements) {
+      final BiConsumer<String, Map<String, String>> onQuestStep, final BiConsumer<String, String> onQuestRequirements,
+      final BiConsumer<String, Map<String, String>> onGearOptimize) {
       this.store = store;
       this.onAsk = onAsk;
       this.onQuestStep = onQuestStep;
       this.onQuestRequirements = onQuestRequirements;
+      this.onGearOptimize = onGearOptimize;
       setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
       setOpaque(false);
 
@@ -128,7 +132,9 @@ public class GuidesView extends JPanel {
    private JComponent guideCard(final Guide guide) {
       final boolean expanded = expandedCards.contains(guide.getId());
       final Map<String, String> guidePicks = picks.computeIfAbsent(guide.getId(), k -> new HashMap<>());
-      final boolean isQuestStep = guide.getId().startsWith("quest-continue-");
+      final boolean isQuestStep = guide.getId().startsWith(GuideCatalog.QUEST_STEP_PREFIX);
+      final boolean isGearOptimize = guide.getId().startsWith(GuideCatalog.GEAR_OPTIMIZER_PREFIX);
+      final boolean isTool = isQuestStep || isGearOptimize;
 
       final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 6), CARD_BG, 10);
       card.setBorder(new EmptyBorder(7, 8, 7, 7));
@@ -137,22 +143,14 @@ public class GuidesView extends JPanel {
          card.setOutline(ColorScheme.PROGRESS_COMPLETE_COLOR.darker());
       }
 
-      // Top row: title (click to expand) + one-click Ask.
+      // Top row: title (click to expand) + one-click Ask / Go.
       final HtmlPane title = new HtmlPane(Color.WHITE, FontManager.getRunescapeBoldFont());
-      title.setPlainText((isQuestStep ? "▶ " : "") + guide.title() + (guide.isCustomized() ? "  ✎" : ""));
+      title.setPlainText((isTool ? "▶ " : "") + guide.title() + (guide.isCustomized() ? "  ✎" : ""));
       title.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
       title.setToolTipText(expanded ? "Hide options" : "Show options");
 
-      final JButton ask = pillButton(isQuestStep ? "Go" : "Ask");
-      final Runnable doAsk = () -> {
-         if (isQuestStep) {
-            onQuestStep.accept(guide.getFields().get("quest"), guidePicks);
-         } else if (guide.getId().equals("quest-requirements")) {
-            onQuestRequirements.accept(guide.getFields().get("quest"), guide.prompt(guidePicks));
-         } else {
-            onAsk.accept(guide.title(), guide.prompt(guidePicks));
-         }
-      };
+      final JButton ask = pillButton(isTool ? "Go" : "Ask");
+      final Runnable doAsk = () -> runGuide(guide, guidePicks);
       ask.addActionListener(e -> doAsk.run());
 
       final JPanel top = new JPanel(new BorderLayout(6, 0));
@@ -213,7 +211,9 @@ public class GuidesView extends JPanel {
          details.add(Box.createVerticalStrut(8));
          final JButton edit = pillButton("Edit guide");
          edit.addActionListener(e -> edit(guide));
-         final JButton askBottom = pillButton(isQuestStep ? "Find my next step" : "Ask");
+         final String bottomLabel = isQuestStep ? "Find my next step"
+            : isGearOptimize ? "Find best gear" : "Ask";
+         final JButton askBottom = pillButton(bottomLabel);
          askBottom.addActionListener(e -> doAsk.run());
          final JPanel buttons = new JPanel(new GridLayout(1, 2, 4, 0));
          buttons.setOpaque(false);
@@ -224,6 +224,21 @@ public class GuidesView extends JPanel {
          card.add(details, BorderLayout.CENTER);
       }
       return card;
+   }
+
+   private void runGuide(final Guide guide, final Map<String, String> guidePicks) {
+      if (guide.getId().startsWith(GuideCatalog.QUEST_STEP_PREFIX)) {
+         onQuestStep.accept(guide.getFields().get("quest"), guidePicks);
+      } else if (guide.getId().startsWith(GuideCatalog.GEAR_OPTIMIZER_PREFIX)) {
+         final String target = guide.getFields().containsKey("monster")
+            ? guide.getFields().get("monster")
+            : guide.getFields().get("boss");
+         onGearOptimize.accept(target, guidePicks);
+      } else if (guide.getId().equals(GuideCatalog.QUEST_REQUIREMENTS_ID)) {
+         onQuestRequirements.accept(guide.getFields().get("quest"), guide.prompt(guidePicks));
+      } else {
+         onAsk.accept(guide.title(), guide.prompt(guidePicks));
+      }
    }
 
    private JComponent otherCard(final GuideCategory category) {
@@ -278,7 +293,7 @@ public class GuidesView extends JPanel {
          case SAVE_AND_ASK:
             store.save(working);
             render();
-            onAsk.accept(working.title(), working.prompt(picks.getOrDefault(working.getId(), new HashMap<>())));
+            runGuide(working, picks.getOrDefault(working.getId(), new HashMap<>()));
             break;
          case RESET:
             store.reset(original);

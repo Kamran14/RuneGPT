@@ -21,21 +21,25 @@ public class AssistantService {
    private final GuideVerifier verifier;
    private final Gson gson;
    private final QuestAssistant quests;
+   private final PriceService prices;
 
    @Inject
    public AssistantService(final GPTClient gpt, final GuideVerifier verifier, final Gson gson,
-      final QuestAssistant quests) {
+      final QuestAssistant quests, final PriceService prices) {
       this.gpt = gpt;
       this.quests = quests;
       this.verifier = verifier;
       this.gson = gson;
+      this.prices = prices;
    }
 
    /** Blocking: LLM and wiki calls. */
    public AssistantResponse ask(final String prompt, final PlayerSnapshot snapshot) {
-      // Ground answers about specific quests in the official quest list + OSRS Wiki, so the model can't deny
-      // a quest exists or guess its requirements.
-      final LlmReply reply = gpt.ask(prompt, snapshot.toContext() + quests.wikiFactsFor(prompt, snapshot));
+      // Ground answers in official quest + wiki data and live GE prices so the model never invents either.
+      final String context = snapshot.toContext()
+         + quests.wikiFactsFor(prompt, snapshot)
+         + prices.priceFactsFor(prompt, snapshot);
+      final LlmReply reply = gpt.ask(prompt, context);
       if (!reply.isSuccess()) {
          return AssistantResponse.failure(reply.getText());
       }

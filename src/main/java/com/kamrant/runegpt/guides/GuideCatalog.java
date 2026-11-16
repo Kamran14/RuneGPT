@@ -18,6 +18,8 @@ public final class GuideCatalog {
 
    /** Guides whose id starts with this open the wiki-grounded quest step assistant. */
    public static final String QUEST_STEP_PREFIX = "quest-continue-";
+   /** Guides whose id starts with this run the stat-based gear optimizer from owned items. */
+   public static final String GEAR_OPTIMIZER_PREFIX = "gear-optimize-";
    public static final String QUEST_REQUIREMENTS_ID = "quest-requirements";
 
    private static final int MAX_CONTINUE_QUESTS = 3;
@@ -47,6 +49,9 @@ public final class GuideCatalog {
             break;
 
          case MONSTERS:
+            out.add(new Guide(GEAR_OPTIMIZER_PREFIX + "monster", category, Prompts.GEAR_OPTIMIZE_TITLE,
+               Prompts.GEAR_OPTIMIZE, fields("monster", killTarget(p.getCombatLevel())))
+               .withOptions(GuideOption.ATTACK_STYLE, GuideOption.SLAYER_TASK));
             out.add(new Guide("monster-kill", category, Prompts.MONSTER_KILL_TITLE, Prompts.MONSTER_KILL,
                fields("count", "200", "monster", killTarget(p.getCombatLevel())))
                .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));
@@ -58,6 +63,9 @@ public final class GuideCatalog {
             break;
 
          case BOSSES:
+            out.add(new Guide(GEAR_OPTIMIZER_PREFIX + "boss", category, Prompts.BOSS_GEAR_TITLE,
+               Prompts.BOSS_GEAR, fields("boss", bossTarget(p.getCombatLevel())))
+               .withOptions(GuideOption.ATTACK_STYLE, GuideOption.SLAYER_TASK));
             out.add(new Guide("boss-ready", category, Prompts.BOSS_READY_TITLE, Prompts.BOSS_READY,
                fields("boss", bossTarget(p.getCombatLevel())))
                .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));

@@ -28,6 +28,9 @@ public final class Prompts {
          + "under that exact name, say so and name the closest real thing.\n"
          + "- Anything named in the player data or in VERIFIED OSRS WIKI DATA below exists in OSRS (miniquests "
          + "count as quests). Never say it doesn't exist; answer from that data, which overrides your own memory.\n"
+         + "- For item prices and gear/supply costs, use ONLY the numbers in VERIFIED LIVE GRAND EXCHANGE PRICES "
+         + "below. Never guess or recall a GP price from memory; if an item's price isn't listed there, don't state "
+         + "a GP price for it.\n"
          + "- If the answer depends on data you don't have (e.g. bank contents), say so in one short line.\n\n";
 
    /** The JSON contract for {@link #SYSTEM}, appended to it. */
@@ -86,6 +89,10 @@ public final class Prompts {
    public static final String WIKI_FACTS_HEADER = "\nVERIFIED OSRS WIKI DATA (from the official quest list and the "
       + "OSRS Wiki; authoritative):\n";
 
+   /** Header for live Grand Exchange prices attached to a chat or guide request. */
+   public static final String PRICE_FACTS_HEADER = "\nVERIFIED LIVE GRAND EXCHANGE PRICES (use only these numbers "
+      + "for item prices; never invent GP prices):\n";
+
    /** Header for the wiki requirement data appended to a "Requirements for quest" prompt. */
    public static final String REQUIREMENTS_WIKI_HEADER = "\n\nOfficial OSRS Wiki data for %s (use only this for requirements):\n";
 
@@ -112,6 +119,9 @@ public final class Prompts {
    public static final String QUEST_REQUIREMENTS = "What do I still need before I can start {quest}? Check my "
       + "stats and list missing skill levels and prerequisite quests, with the quickest way to get each.";
 
+   public static final String GEAR_OPTIMIZE_TITLE = "Best gear I own for {monster}";
+   public static final String GEAR_OPTIMIZE = "Pick the best gear setup I own for fighting {monster} from my worn "
+      + "items, inventory and bank.";
    public static final String MONSTER_KILL_TITLE = "Kill {count} {monster}";
    public static final String MONSTER_KILL = "Set me up to kill {count} {monster}: best location, gear and "
       + "inventory for my stats, rough time needed, and drops to watch for.";
@@ -122,6 +132,9 @@ public final class Prompts {
    public static final String MONSTER_TRAIN = "Where should I train combat right now for good XP per hour? Use my "
       + "combat stats and say which stat to train first.";
 
+   public static final String BOSS_GEAR_TITLE = "Best gear I own for {boss}";
+   public static final String BOSS_GEAR = "Pick the best gear setup I own for fighting {boss} from my worn items, "
+      + "inventory and bank.";
    public static final String BOSS_READY_TITLE = "Am I ready for {boss}?";
    public static final String BOSS_READY = "Am I ready to fight {boss}? Check my stats against the recommended "
       + "levels, set up my gear and inventory, list the key mechanics, and estimate kills per hour.";

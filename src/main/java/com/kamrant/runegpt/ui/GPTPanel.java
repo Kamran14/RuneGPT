@@ -3,11 +3,13 @@ package com.kamrant.runegpt.ui;
 import com.kamrant.runegpt.guides.GuideStore;
 import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.model.AssistantResponse;
+import com.kamrant.runegpt.model.GearResult;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.QuestStep;
 import com.kamrant.runegpt.quest.QuestAssistant;
 import com.kamrant.runegpt.service.AssistantService;
 import com.kamrant.runegpt.service.BankCache;
+import com.kamrant.runegpt.service.GearOptimizer;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import java.awt.BorderLayout;
@@ -47,6 +49,7 @@ public class GPTPanel extends PluginPanel {
    private final BankCache bankCache;
    private final AssistantService assistant;
    private final QuestAssistant questAssistant;
+   private final GearOptimizer gearOptimizer;
    private final GuideTracker tracker;
    private final GPTClient gptClient;
 
@@ -82,7 +85,8 @@ public class GPTPanel extends PluginPanel {
    @Inject
    public GPTPanel(final Client client, final ClientThread clientThread, final ItemManager itemManager,
       final BankCache bankCache, final GPTClient gptClient, final AssistantService assistant,
-      final GuideStore guideStore, final QuestAssistant questAssistant, final GuideTracker tracker) {
+      final GuideStore guideStore, final QuestAssistant questAssistant, final GearOptimizer gearOptimizer,
+      final GuideTracker tracker) {
       super(false);
       this.client = client;
       this.clientThread = clientThread;
@@ -90,6 +94,7 @@ public class GPTPanel extends PluginPanel {
       this.bankCache = bankCache;
       this.assistant = assistant;
       this.questAssistant = questAssistant;
+      this.gearOptimizer = gearOptimizer;
       this.tracker = tracker;
       this.gptClient = gptClient;
 
@@ -98,7 +103,7 @@ public class GPTPanel extends PluginPanel {
       setBorder(new EmptyBorder(6, 6, 6, 6));
 
       guidesView = new GuidesView(guideStore, this::ask, (quest, picks) -> questStep(quest, picks, null),
-         this::questRequirements);
+         this::questRequirements, this::gearOptimize);
       chatView = new ChatView(text -> ask(text, text), gptClient::clearConversation);
       trackedView = new TrackedGuideView(tracker::stop);
       tracker.setListener(plan -> SwingUtilities.invokeLater(() -> trackedView.setPlan(plan)));
@@ -221,6 +226,18 @@ public class GPTPanel extends PluginPanel {
             snapshot, completedStep);
          SwingUtilities.invokeLater(() ->
             chatView.addCardMessage(QuestStepCard.header(step), QuestStepCard.build(step, actions)));
+      });
+   }
+
+   /** Gear optimizer: picks the highest-DPS setup the player owns against one monster or boss. */
+   private void gearOptimize(final String target, final Map<String, String> picks) {
+      chatView.addUserMessage("Best gear I own for " + target);
+      chatView.showThinking("Checking the OSRS Wiki");
+      withSnapshot(snapshot -> {
+         final GearResult result = gearOptimizer.optimize(target, picks, snapshot);
+         SwingUtilities.invokeLater(() -> chatView.addCardMessage(GearOptimizerCard.header(result),
+            GearOptimizerCard.build(result, snapshot.holdings(),
+               (setup, h) -> gearOptimizer.toGuidePlan(result, setup, h), tracker::start)));
       });
    }
 

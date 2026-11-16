@@ -27,6 +27,7 @@ public final class GuideOption {
    }
 
    public static final GuideOption ATTACK_STYLE = new GuideOption("Attack style", "Melee", "Ranged", "Magic");
+   public static final GuideOption SLAYER_TASK = new GuideOption("Slayer", "On task", "Off task");
    public static final GuideOption BUDGET = new GuideOption("Gear budget", "Budget", "Mid", "Best in slot");
    public static final GuideOption PACE = new GuideOption("Priority", "Fastest", "Cheapest", "AFK");
 }

@@ -16,6 +16,7 @@ import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.service.ItemStatusResolver;
 import com.kamrant.runegpt.service.PlayerSnapshot;
+import com.kamrant.runegpt.service.PriceService;
 import com.kamrant.runegpt.service.ResponseParser;
 import com.kamrant.runegpt.wiki.WikiClient;
 import com.kamrant.runegpt.wiki.WikiLookup;
@@ -56,13 +57,16 @@ public class QuestAssistant {
    private final WikiLookup lookup;
    private final GPTClient gpt;
    private final Gson gson;
+   private final PriceService prices;
 
    @Inject
-   public QuestAssistant(final WikiClient wiki, final WikiLookup lookup, final GPTClient gpt, final Gson gson) {
+   public QuestAssistant(final WikiClient wiki, final WikiLookup lookup, final GPTClient gpt, final Gson gson,
+      final PriceService prices) {
       this.wiki = wiki;
       this.lookup = lookup;
       this.gpt = gpt;
       this.gson = gson;
+      this.prices = prices;
    }
 
    /** Blocking: does network calls. {@code completedStep} is the step the player just finished, or null. */
@@ -170,7 +174,7 @@ public class QuestAssistant {
          .setLocation(location)
          .setNpc(npc)
          .setNpcNearby(npcNearby)
-         .setItems(ItemStatusResolver.resolve(items, player.holdings()))
+         .setItems(prices.withPrices(ItemStatusResolver.resolve(items, player.holdings())))
          .setThen(ResponseParser.strings(json, "then", 3))
          .setTip(ResponseParser.str(json, "tip"))
          .setRemovedUnverified(removed);

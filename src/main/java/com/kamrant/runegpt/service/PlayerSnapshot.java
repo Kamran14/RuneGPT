@@ -1,6 +1,8 @@
 package com.kamrant.runegpt.service;
 
 import com.kamrant.runegpt.model.ItemHoldings;
+import com.kamrant.runegpt.model.ItemSource;
+import com.kamrant.runegpt.model.OwnedGear;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -12,6 +14,7 @@ import java.util.Set;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Item;
+import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
 import net.runelite.api.Player;
@@ -20,7 +23,9 @@ import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.gameval.ItemID;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.ItemStats;
 
 /**
  * Snapshot of the player's progress, gear and surroundings, captured on the client thread (quest
@@ -46,6 +51,8 @@ public final class PlayerSnapshot {
    private final Map<String, Integer> inventory = new LinkedHashMap<>();
    private final Map<String, Integer> equipment = new LinkedHashMap<>();
    private final Map<String, Integer> bank = new LinkedHashMap<>();
+   private final List<OwnedGear> ownedGear = new ArrayList<>();
+   private long cash;
    private boolean bankKnown;
 
    private PlayerSnapshot() {
@@ -94,12 +101,28 @@ public final class PlayerSnapshot {
          s.nearbyNpcs.addAll(names);
       }
 
-      readContainer(client.getItemContainer(InventoryID.INV), itemManager, s.inventory);
-      readContainer(client.getItemContainer(InventoryID.WORN), itemManager, s.equipment);
+      final Map<Integer, OwnedGear> gearById = new LinkedHashMap<>();
+      final ItemContainer worn = client.getItemContainer(InventoryID.WORN);
+      final ItemContainer inv = client.getItemContainer(InventoryID.INV);
+      readContainer(worn, itemManager, s.equipment);
+      readContainer(inv, itemManager, s.inventory);
+      readGear(worn, itemManager, ItemSource.WORN, gearById);
+      readGear(inv, itemManager, ItemSource.INVENTORY, gearById);
+      s.cash += countCash(inv);
+
       s.bankKnown = bankCache.isKnown();
       for (final Map.Entry<Integer, Integer> e : bankCache.getItems().entrySet()) {
-         s.bank.merge(itemManager.getItemComposition(e.getKey()).getName(), e.getValue(), Integer::sum);
+         final int id = e.getKey();
+         final int qty = e.getValue();
+         final ItemComposition comp = itemManager.getItemComposition(id);
+         if (comp.getPlaceholderTemplateId() != -1) {
+            continue;
+         }
+         s.bank.merge(comp.getName(), qty, Integer::sum);
+         s.cash += cashOf(id, qty);
+         addGear(id, comp, itemManager, ItemSource.BANK, gearById);
       }
+      s.ownedGear.addAll(gearById.values());
       return s;
    }
 
@@ -114,6 +137,57 @@ public final class PlayerSnapshot {
             out.merge(itemManager.getItemComposition(item.getId()).getName(), item.getQuantity(), Integer::sum);
          }
       }
+   }
+
+   private static void readGear(final ItemContainer container, final ItemManager itemManager, final ItemSource source,
+      final Map<Integer, OwnedGear> out) {
+      if (container == null) {
+         return;
+      }
+      for (final Item item : container.getItems()) {
+         if (item.getId() > 0 && item.getQuantity() > 0) {
+            addGear(item.getId(), itemManager.getItemComposition(item.getId()), itemManager, source, out);
+         }
+      }
+   }
+
+   private static void addGear(final int itemId, final ItemComposition comp, final ItemManager itemManager,
+      final ItemSource source, final Map<Integer, OwnedGear> out) {
+      if (comp.getName() == null || comp.getNote() != -1 || comp.getPlaceholderTemplateId() != -1) {
+         return;
+      }
+      final int canonical = itemManager.canonicalize(itemId);
+      if (out.containsKey(canonical)) {
+         return;
+      }
+      final ItemStats stats = itemManager.getItemStats(canonical);
+      if (stats != null && stats.isEquipable() && stats.getEquipment() != null) {
+         out.put(canonical, new OwnedGear(canonical, comp.getName(), stats.getEquipment(), source));
+      }
+   }
+
+   private static long countCash(final ItemContainer container) {
+      if (container == null) {
+         return 0;
+      }
+      long total = 0;
+      for (final Item item : container.getItems()) {
+         total += cashOf(item.getId(), item.getQuantity());
+      }
+      return total;
+   }
+
+   private static long cashOf(final int id, final int qty) {
+      if (qty <= 0) {
+         return 0;
+      }
+      if (id == ItemID.COINS) {
+         return qty;
+      }
+      if (id == ItemID.PLATINUM) {
+         return qty * 1000L;
+      }
+      return 0;
    }
 
    public boolean isLoggedIn() {
@@ -155,6 +229,16 @@ public final class PlayerSnapshot {
 
    public Map<String, Integer> getBank() {
       return Collections.unmodifiableMap(bank);
+   }
+
+   /** Equipable items the player has worn, in inventory or in the bank (worn first). */
+   public List<OwnedGear> getOwnedGear() {
+      return Collections.unmodifiableList(ownedGear);
+   }
+
+   /** Total GP across inventory and (known) bank, including platinum tokens. */
+   public long getCash() {
+      return cash;
    }
 
    public boolean isBankKnown() {
