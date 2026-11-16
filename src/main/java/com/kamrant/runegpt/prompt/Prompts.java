@@ -26,6 +26,8 @@ public final class Prompts {
          + "and locations.\n"
          + "- Never invent quests, items, NPCs, monsters or locations. If you are not sure something exists "
          + "under that exact name, say so and name the closest real thing.\n"
+         + "- Anything named in the player data or in VERIFIED OSRS WIKI DATA below exists in OSRS (miniquests "
+         + "count as quests). Never say it doesn't exist; answer from that data, which overrides your own memory.\n"
          + "- If the answer depends on data you don't have (e.g. bank contents), say so in one short line.\n\n";
 
    /** The JSON contract for {@link #SYSTEM}, appended to it. */
@@ -79,6 +81,10 @@ public final class Prompts {
 
    public static final String QUEST_WIKI_HEADER = "\nOSRS WIKI TEXT (the only source you may use):\n";
    public static final String QUEST_COMPLETED_STEP = "The player says they just completed this step: %s\n";
+
+   /** Header for wiki facts attached to a chat request about specific quests. */
+   public static final String WIKI_FACTS_HEADER = "\nVERIFIED OSRS WIKI DATA (from the official quest list and the "
+      + "OSRS Wiki; authoritative):\n";
 
    /** Header for the wiki requirement data appended to a "Requirements for quest" prompt. */
    public static final String REQUIREMENTS_WIKI_HEADER = "\n\nOfficial OSRS Wiki data for %s (use only this for requirements):\n";

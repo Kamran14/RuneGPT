@@ -46,6 +46,9 @@ public class QuestAssistant {
 
    // Keep the wiki excerpt within free-tier token budgets.
    private static final int MAX_WIKI_CHARS = 9000;
+   // Chat grounding: facts for at most this many mentioned quests, with a short walkthrough excerpt each.
+   private static final int MAX_FACT_QUESTS = 2;
+   private static final int MAX_FACT_GUIDE_CHARS = 1500;
    private static final String[] DETAIL_KEYS = { "start", "difficulty", "length", "requirements", "items", "recommended", "kills" };
    private static final String[] REQUIREMENT_KEYS = { "requirements", "items", "recommended", "kills", "start" };
 
@@ -213,6 +216,49 @@ public class QuestAssistant {
          log.warn("RuneGPT: wiki fetch failed for {}", quest, e);
          return prompt;
       }
+   }
+
+   /**
+    * Verified OSRS Wiki facts for the quests mentioned in {@code question} (official quest list + wiki), to
+    * attach to a general chat request. Empty when none are mentioned. Blocking.
+    */
+   public String wikiFactsFor(final String question, final PlayerSnapshot player) {
+      final List<String> quests = QuestMentions.find(question, MAX_FACT_QUESTS);
+      if (quests.isEmpty()) {
+         return "";
+      }
+      final StringBuilder sb = new StringBuilder(Prompts.WIKI_FACTS_HEADER);
+      for (final String quest : quests) {
+         try {
+            final String main = wiki.raw(quest);
+            final boolean mini = main != null && main.contains("{{Infobox Miniquest");
+            sb.append("\n").append(quest).append(" (a real OSRS ").append(mini ? "miniquest" : "quest").append(")\n");
+            final QuestState state = player.questState(quest);
+            if (state != null) {
+               sb.append("player status: ").append(state.name().toLowerCase(Locale.ROOT).replace('_', ' ')).append('\n');
+            }
+            if (main == null) {
+               continue;
+            }
+            final Map<String, String> d = Wikitext.templateParams(main, "Quest details");
+            for (final String key : DETAIL_KEYS) {
+               final String v = d.get(key);
+               if (v != null && !v.isEmpty()) {
+                  sb.append(key).append(": ").append(v).append('\n');
+               }
+            }
+            final String quick = wiki.raw(quest + "/Quick guide");
+            if (quick != null) {
+               final String steps = Wikitext.toPlain(quick);
+               sb.append("walkthrough (excerpt): ")
+                  .append(steps.length() > MAX_FACT_GUIDE_CHARS ? steps.substring(0, MAX_FACT_GUIDE_CHARS) + "..." : steps)
+                  .append('\n');
+            }
+         } catch (final IOException e) {
+            log.debug("RuneGPT: wiki facts unavailable for {}", quest, e);
+         }
+      }
+      return sb.toString();
    }
 
    private static String buildWikiText(final String quest, final String mainRaw, final String quickRaw) {

@@ -6,6 +6,7 @@ import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.model.AssistantResponse;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.LlmReply;
+import com.kamrant.runegpt.quest.QuestAssistant;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -19,17 +20,22 @@ public class AssistantService {
    private final GPTClient gpt;
    private final GuideVerifier verifier;
    private final Gson gson;
+   private final QuestAssistant quests;
 
    @Inject
-   public AssistantService(final GPTClient gpt, final GuideVerifier verifier, final Gson gson) {
+   public AssistantService(final GPTClient gpt, final GuideVerifier verifier, final Gson gson,
+      final QuestAssistant quests) {
       this.gpt = gpt;
+      this.quests = quests;
       this.verifier = verifier;
       this.gson = gson;
    }
 
    /** Blocking: LLM and wiki calls. */
    public AssistantResponse ask(final String prompt, final PlayerSnapshot snapshot) {
-      final LlmReply reply = gpt.ask(prompt, snapshot.toContext());
+      // Ground answers about specific quests in the official quest list + OSRS Wiki, so the model can't deny
+      // a quest exists or guess its requirements.
+      final LlmReply reply = gpt.ask(prompt, snapshot.toContext() + quests.wikiFactsFor(prompt, snapshot));
       if (!reply.isSuccess()) {
          return AssistantResponse.failure(reply.getText());
       }

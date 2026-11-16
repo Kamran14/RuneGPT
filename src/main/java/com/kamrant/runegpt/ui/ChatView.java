@@ -6,6 +6,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.KeyEvent;
 import java.util.function.Consumer;
 import javax.swing.AbstractAction;
@@ -39,6 +41,9 @@ public class ChatView extends JPanel {
    private static final Color USER_BG = new Color(74, 54, 22);
    private static final Color ASSISTANT_BG = ColorScheme.DARKER_GRAY_COLOR;
    private static final Color ERROR_BG = new Color(84, 32, 32);
+   private static final Color NOTICE_BG = new Color(44, 40, 28);
+   /** How long after a message is added its resizes still re-scroll the view. */
+   private static final long RESCROLL_WINDOW_MS = 3000;
    static final Color TEXT = new Color(220, 220, 220);
 
    private final ViewportWidthPanel list = new ViewportWidthPanel();
@@ -51,6 +56,8 @@ public class ChatView extends JPanel {
    private final JButton newChat = GuidesView.pillButton("New chat");
    private final JComponent emptyState;
 
+   private JComponent newestRow;
+   private long newestAddedAt;
    private JComponent thinkingRow;
    private Timer thinkingTimer;
 
@@ -220,6 +227,14 @@ public class ChatView extends JPanel {
       addRow(bubble(header, body, ASSISTANT_BG), 0);
    }
 
+   /** A neutral notice from RuneGPT itself (e.g. about API keys), shown like an answer. */
+   public void addNotice(final String text) {
+      removeEmptyState();
+      final HtmlPane pane = new HtmlPane(TEXT);
+      pane.setPlainText(text);
+      addRow(bubble("RuneGPT", pane, NOTICE_BG), 0);
+   }
+
    public void addErrorMessage(final String text) {
       removeThinking();
       final HtmlPane pane = new HtmlPane(TEXT);
@@ -302,11 +317,35 @@ public class ChatView extends JPanel {
       return row;
    }
 
-   /** Scroll so the top of the newest message is visible (long answers read from the top). */
+   /**
+    * Bring the newest message into view: the whole message when it fits, otherwise its first line (long
+    * answers read from the top). Wrapped text only gets its final height after a layout pass or two, so this
+    * re-runs whenever the newest row resizes shortly after being added, instead of using a stale height that
+    * leaves the first or last line cut off.
+    */
    private void scrollToNewest(final JComponent row) {
+      newestRow = row;
+      newestAddedAt = System.currentTimeMillis();
+      row.addComponentListener(new ComponentAdapter() {
+         @Override
+         public void componentResized(final ComponentEvent e) {
+            if (row == newestRow && System.currentTimeMillis() - newestAddedAt < RESCROLL_WINDOW_MS) {
+               scheduleScroll(row);
+            }
+         }
+      });
+      scheduleScroll(row);
+   }
+
+   private void scheduleScroll(final JComponent row) {
       SwingUtilities.invokeLater(() -> SwingUtilities.invokeLater(() -> {
+         if (row != newestRow) {
+            return;
+         }
          final Rectangle r = row.getBounds();
-         list.scrollRectToVisible(new Rectangle(0, r.y, 1, Math.min(r.height, scroll.getViewport().getHeight())));
+         final int viewport = scroll.getViewport().getHeight();
+         // A rect taller than the viewport would scroll to its bottom; cap it so the top stays visible.
+         list.scrollRectToVisible(new Rectangle(0, r.y, 1, Math.min(r.height + ROW_PAD, viewport)));
       }));
    }
 

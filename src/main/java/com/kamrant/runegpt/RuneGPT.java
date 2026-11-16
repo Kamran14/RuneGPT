@@ -97,6 +97,8 @@ public class RuneGPT extends Plugin {
 		clientToolbar.addNavigation(navButton);
 		// Encrypt any API keys still stored in plain text (e.g. from older versions).
 		encryptStoredKeys();
+		// Make sure the saved keys decrypt on this computer; tell the player now if not.
+		gptPanel.checkKeys();
 		overlayManager.add(targetHighlightOverlay);
 		overlayManager.add(guideChecklistOverlay);
 		gptPanel.refreshGuides();

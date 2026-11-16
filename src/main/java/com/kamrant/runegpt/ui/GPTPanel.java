@@ -48,6 +48,7 @@ public class GPTPanel extends PluginPanel {
    private final AssistantService assistant;
    private final QuestAssistant questAssistant;
    private final GuideTracker tracker;
+   private final GPTClient gptClient;
 
    private final GuidesView guidesView;
    private final ChatView chatView;
@@ -90,6 +91,7 @@ public class GPTPanel extends PluginPanel {
       this.assistant = assistant;
       this.questAssistant = questAssistant;
       this.tracker = tracker;
+      this.gptClient = gptClient;
 
       setLayout(new BorderLayout());
       setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -134,6 +136,23 @@ public class GPTPanel extends PluginPanel {
       split.setBorder(BorderFactory.createEmptyBorder());
       split.setOpaque(false);
       add(split, BorderLayout.CENTER);
+   }
+
+   /**
+    * Checks the saved API keys can be decrypted (and that at least one provider is usable) as soon as
+    * RuneGPT opens, and tells the player in the chat if not, instead of failing on their first question.
+    */
+   public void checkKeys() {
+      try {
+         worker.execute(() -> {
+            final String notice = gptClient.keyNotice();
+            if (notice != null) {
+               SwingUtilities.invokeLater(() -> chatView.addNotice(notice));
+            }
+         });
+      } catch (final RejectedExecutionException e) {
+         log.debug("RuneGPT: worker stopped, skipping key check");
+      }
    }
 
    /** Re-read stats and quest progress, then rebuild the guide suggestions. */

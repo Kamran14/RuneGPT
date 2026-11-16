@@ -81,6 +81,25 @@ public class GPTClient {
       return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)));
    }
 
+   /**
+    * Checks the saved keys can be decrypted on this computer (run when RuneGPT opens). Returns a short notice
+    * for the player if a key can't be decrypted or no provider is usable, or null if everything is fine.
+    */
+   public String keyNotice() {
+      final List<String> undecryptable = new ArrayList<>();
+      final List<LLMProviderClient> candidates = orderedCandidates(new EnumMap<>(LLMProvider.class), undecryptable);
+      if (!undecryptable.isEmpty()) {
+         return "Your saved " + String.join(" and ", undecryptable) + " API key can't be decrypted on this computer. "
+            + "Keys are encrypted with a key that stays on the computer where you entered them, so please re-enter "
+            + "it in the RuneGPT plugin settings.";
+      }
+      if (candidates.isEmpty()) {
+         return "No API key set yet. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings to start "
+            + "(Groq is free and needs no card).";
+      }
+      return null;
+   }
+
    private LlmReply send(final String system, final List<ChatMessage> messages) {
       // Keys are decrypted here, per request, and only kept in this local map for the duration of the call.
       final Map<LLMProvider, String> keys = new EnumMap<>(LLMProvider.class);
