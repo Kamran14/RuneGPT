@@ -100,6 +100,8 @@ public class GuidesView extends JPanel {
          final CollapsibleSection section = sections.get(category);
          if (category == GuideCategory.QUESTS && !snapshot.getQuestsInProgress().isEmpty()) {
             section.setBadge(snapshot.getQuestsInProgress().size() + " active");
+         } else if (category == GuideCategory.QUESTS && snapshot.isLoggedIn() && !snapshot.hasIncompleteQuests()) {
+            section.setBadge("Complete");
          } else {
             section.setBadge(null);
          }
@@ -118,6 +120,10 @@ public class GuidesView extends JPanel {
       list.setOpaque(false);
       if (!snapshot.isLoggedIn()) {
          list.add(note(UiTheme.NOTE_LOGIN_SUGGESTIONS));
+      } else if (category == GuideCategory.QUESTS && !snapshot.hasIncompleteQuests()) {
+         list.add(note(UiTheme.NOTE_ALL_QUESTS_DONE));
+      } else if (category == GuideCategory.SKILLING && snapshot.highestUnmaxedSkill() == null) {
+         list.add(note(UiTheme.NOTE_ALL_SKILLS_MAXED));
       }
       for (final Guide guide : store.guides(category, snapshot)) {
          list.add(guideCard(guide));

@@ -41,7 +41,7 @@ public class GuideStore {
          try {
             final SavedGuide saved = gson.fromJson(json, SavedGuide.class);
             if (saved != null && saved.title != null && saved.prompt != null && saved.fields != null) {
-               guide.apply(saved.title, saved.prompt, saved.fields);
+               GuideCatalog.applySavedIfValid(guide, saved.title, saved.prompt, saved.fields, snapshot);
             }
          } catch (final JsonSyntaxException e) {
             log.warn("RuneGPT: ignoring unreadable saved guide {}", guide.getId());

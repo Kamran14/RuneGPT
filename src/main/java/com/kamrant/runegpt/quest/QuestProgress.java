@@ -4,10 +4,12 @@ import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.service.ItemStatusResolver;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import net.runelite.api.Client;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
@@ -28,6 +30,8 @@ public final class QuestProgress {
 
    // Positive values = VarbitID; negative values = -(VarPlayerID + 1).
    private static final Map<Quest, Integer> QUEST_VARS = new EnumMap<>(Quest.class);
+   private static final Set<Integer> TRACKED_VARBITS = new HashSet<>();
+   private static final Set<Integer> TRACKED_VARPS = new HashSet<>();
 
    // Multi-branch sub-varbits: Quest -> { label, varbitId, completedThreshold }.
    private static final Map<Quest, Object[][]> SUB_VARBITS = new EnumMap<>(Quest.class);
@@ -274,6 +278,12 @@ public final class QuestProgress {
          { "Model ship / Toy boat", VarbitID.AHOY_SUBQUEST_TOYBOAT, 5, "toy boat", "model ship", "silk" },
          { "Longbow / Oak longbow signing", VarbitID.AHOY_SUBQUEST_BOW, 5, "oak longbow", "robin", "bow" }
       });
+
+      for (final Object[][] rows : SUB_VARBITS.values()) {
+         for (final Object[] row : rows) {
+            TRACKED_VARBITS.add((int) row[1]);
+         }
+      }
    }
 
    private QuestProgress() {
@@ -281,10 +291,18 @@ public final class QuestProgress {
 
    private static void varbit(final Quest q, final int varbitId) {
       QUEST_VARS.put(q, varbitId);
+      TRACKED_VARBITS.add(varbitId);
    }
 
    private static void varp(final Quest q, final int varpId) {
       QUEST_VARS.put(q, -(varpId + 1));
+      TRACKED_VARPS.add(varpId);
+   }
+
+   /** True if the changed Varbit or VarPlayer tracks quest progression. */
+   public static boolean isQuestVar(final int varbitId, final int varpId) {
+      return (varbitId >= 0 && TRACKED_VARBITS.contains(varbitId))
+         || (varpId >= 0 && TRACKED_VARPS.contains(varpId));
    }
 
    /**

@@ -61,8 +61,8 @@ public class AssistantService {
       if (answer.isEmpty() && guide != null) {
          answer = "### " + guide.getTitle();
       }
-      final List<TaskSuggestion> suggestions = ResponseParser.suggestions(
-         json, answer, guide != null, MAX_SUGGESTIONS);
+      final List<TaskSuggestion> suggestions = snapshot.filterValidSuggestions(
+         ResponseParser.suggestions(json, answer, guide != null, MAX_SUGGESTIONS));
       gpt.remember(prompt, answer);
       return AssistantResponse.of(answer, guide, suggestions);
    }

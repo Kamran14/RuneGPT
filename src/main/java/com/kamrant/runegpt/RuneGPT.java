@@ -6,6 +6,7 @@ import com.kamrant.runegpt.overlay.GuideChecklistOverlay;
 import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
 import com.kamrant.runegpt.overlay.WorldMapGuideOverlay;
 import com.kamrant.runegpt.quest.QuestJournalCache;
+import com.kamrant.runegpt.quest.QuestProgress;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
@@ -22,6 +23,8 @@ import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.StatChanged;
+import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
@@ -95,6 +98,8 @@ public class RuneGPT extends Plugin {
 
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
+	private int lastTotalLevel;
+	private boolean questProgressDirty;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -169,12 +174,33 @@ public class RuneGPT extends Plugin {
 	public void onGameStateChanged(final GameStateChanged event) {
 		// Re-personalize guide suggestions on login / logout.
 		if (event.getGameState() == GameState.LOGGED_IN || event.getGameState() == GameState.LOGIN_SCREEN) {
+			lastTotalLevel = event.getGameState() == GameState.LOGGED_IN ? client.getTotalLevel() : 0;
+			questProgressDirty = false;
 			gptPanel.refreshGuides();
 		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN) {
 			// Bank and quest journal contents belong to the account that just logged out.
 			bankCache.clear();
 			questJournalCache.clear();
+		}
+	}
+
+	@Subscribe
+	public void onStatChanged(final StatChanged event) {
+		if (client.getGameState() == GameState.LOGGED_IN) {
+			final int total = client.getTotalLevel();
+			if (total > 0 && total != lastTotalLevel) {
+				lastTotalLevel = total;
+				gptPanel.refreshGuides();
+			}
+		}
+	}
+
+	@Subscribe
+	public void onVarbitChanged(final VarbitChanged event) {
+		if (client.getGameState() == GameState.LOGGED_IN
+			&& QuestProgress.isQuestVar(event.getVarbitId(), event.getVarpId())) {
+			questProgressDirty = true;
 		}
 	}
 
@@ -194,6 +220,10 @@ public class RuneGPT extends Plugin {
 	public void onGameTick(final GameTick tick) {
 		targetHighlighter.onTick();
 		questJournalCache.updateFromClient(client);
+		if (questProgressDirty && gptPanel != null) {
+			questProgressDirty = false;
+			gptPanel.refreshGuides();
+		}
 	}
 
 	@Provides

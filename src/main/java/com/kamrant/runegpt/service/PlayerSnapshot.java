@@ -3,9 +3,11 @@ package com.kamrant.runegpt.service;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.ItemSource;
 import com.kamrant.runegpt.model.OwnedGear;
+import com.kamrant.runegpt.model.TaskSuggestion;
 import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.quest.QuestProgress;
+import com.kamrant.runegpt.quest.QuestResolver;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -15,6 +17,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.Item;
@@ -39,6 +43,17 @@ public final class PlayerSnapshot {
 
    private static final int MAX_NEARBY_NPCS = 15;
    private static final int MAX_BANK_CHARS = 1500;
+   private static final Skill[] COMBAT_SKILLS = {
+      Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED, Skill.MAGIC, Skill.HITPOINTS
+   };
+   private static final Skill[] MONEY_SKILLS = {
+      Skill.SLAYER, Skill.RUNECRAFT, Skill.FARMING, Skill.HUNTER, Skill.THIEVING,
+      Skill.MINING, Skill.SMITHING, Skill.FISHING, Skill.WOODCUTTING, Skill.COOKING,
+      Skill.HERBLORE, Skill.CRAFTING, Skill.FLETCHING
+   };
+   private static final Pattern SKILL_TARGET_PATTERN = Pattern.compile(
+      "(?:train|level|plan)\\s+([a-z]+)\\s+(?:to\\s+)?(\\d{1,2})\\b|\\b(\\d{1,2})\\s+([a-z]+)\\b",
+      Pattern.CASE_INSENSITIVE);
 
    public static final PlayerSnapshot LOGGED_OUT = new PlayerSnapshot();
 
@@ -47,6 +62,8 @@ public final class PlayerSnapshot {
    private int combatLevel;
    private int totalLevel;
    private final List<String> questsInProgress = new ArrayList<>();
+   private final List<String> questsCompletedList = new ArrayList<>();
+   private final List<String> questsNotStarted = new ArrayList<>();
    private final Map<String, QuestState> questStates = new LinkedHashMap<>();
    private final Map<String, Double> questRatios = new LinkedHashMap<>();
    private final Map<String, String> questStageTexts = new LinkedHashMap<>();
@@ -93,6 +110,9 @@ public final class PlayerSnapshot {
             s.questsInProgress.add(quest.getName());
          } else if (state == QuestState.FINISHED) {
             s.questsCompleted++;
+            s.questsCompletedList.add(quest.getName());
+         } else {
+            s.questsNotStarted.add(quest.getName());
          }
       }
 
@@ -217,13 +237,58 @@ public final class PlayerSnapshot {
       return combatLevel;
    }
 
+   public int getTotalLevel() {
+      return totalLevel;
+   }
+
+   public int getQuestsCompleted() {
+      return questsCompleted;
+   }
+
    public List<String> getQuestsInProgress() {
       return Collections.unmodifiableList(questsInProgress);
+   }
+
+   public List<String> getQuestsNotStarted() {
+      return Collections.unmodifiableList(questsNotStarted);
    }
 
    /** State of a quest by its exact name, or null if unknown. */
    public QuestState questState(final String questName) {
       return questStates.get(questName);
+   }
+
+   /** True when the player is logged in and has completed {@code quest}. */
+   public boolean isQuestCompleted(final Quest quest) {
+      return quest != null && isQuestCompleted(quest.getName());
+   }
+
+   /** True when the player is logged in and has completed {@code questName}. */
+   public boolean isQuestCompleted(final String questName) {
+      return loggedIn && questName != null && questStates.get(questName) == QuestState.FINISHED;
+   }
+
+   /** True when logged out, or when at least one quest is still in progress or not started. */
+   public boolean hasIncompleteQuests() {
+      return !loggedIn || !questsInProgress.isEmpty() || !questsNotStarted.isEmpty();
+   }
+
+   /** Count of quests that are IN_PROGRESS or NOT_STARTED (or Quest.values().length when logged out). */
+   public int incompleteQuestCount() {
+      return !loggedIn ? Quest.values().length : questsInProgress.size() + questsNotStarted.size();
+   }
+
+   /** True when logged in and all primary combat skills (Attack, Strength, Defence, Ranged, Magic, Hitpoints) are 99+. */
+   public boolean isAllCombatMaxed() {
+      if (!loggedIn) {
+         return false;
+      }
+      for (final Skill s : COMBAT_SKILLS) {
+         if (level(s) < 99) {
+            return false;
+         }
+      }
+      return true;
    }
 
    public WorldPoint getLocation() {
@@ -335,6 +400,122 @@ public final class PlayerSnapshot {
       return best;
    }
 
+   /** Highest skill below 99 excluding {@code exclude}, or {@link #highestUnmaxedSkill()} if only one unmaxed skill remains. */
+   public Skill highestUnmaxedSkillExcept(final Skill exclude) {
+      Skill best = null;
+      for (final Map.Entry<Skill, Integer> e : levels.entrySet()) {
+         if (e.getKey() != exclude && e.getValue() < 99 && (best == null || e.getValue() > levels.get(best))) {
+            best = e.getKey();
+         }
+      }
+      return best != null ? best : highestUnmaxedSkill();
+   }
+
+   /** Highest-level profitable skill the player has (even at 99), or null when logged out. */
+   public Skill bestMoneySkill() {
+      if (!loggedIn) {
+         return null;
+      }
+      Skill best = null;
+      int bestLvl = -1;
+      for (final Skill s : MONEY_SKILLS) {
+         final int lvl = level(s);
+         if (lvl > bestLvl) {
+            bestLvl = lvl;
+            best = s;
+         }
+      }
+      return best;
+   }
+
+   /**
+    * Removes task suggestions that are already completed by the player (e.g. finished quests or skill targets
+    * the player has already reached).
+    */
+   public List<TaskSuggestion> filterValidSuggestions(final List<TaskSuggestion> suggestions) {
+      if (!loggedIn || suggestions == null || suggestions.isEmpty()) {
+         return suggestions;
+      }
+      final List<TaskSuggestion> out = new ArrayList<>(suggestions.size());
+      for (final TaskSuggestion s : suggestions) {
+         if (isSuggestionValid(s)) {
+            out.add(s);
+         }
+      }
+      return out;
+   }
+
+   private boolean isSuggestionValid(final TaskSuggestion s) {
+      if (s == null || s.getTitle() == null || s.getTitle().isEmpty()) {
+         return false;
+      }
+      final String rawTitle = s.getTitle().trim();
+      final String cleanedQuestCandidate = rawTitle
+         .replaceFirst("(?i)^(?:complete|finish|do|start|continue|quest:?|miniquest:?)\\s+", "")
+         .trim();
+      final String matchedQuest = QuestResolver.resolve(cleanedQuestCandidate).getQuestName();
+      if (matchedQuest != null && isQuestCompleted(matchedQuest)) {
+         return false;
+      }
+      final Matcher m = SKILL_TARGET_PATTERN.matcher(rawTitle);
+      if (m.find()) {
+         final String skillName = m.group(1) != null ? m.group(1) : m.group(4);
+         final String targetStr = m.group(2) != null ? m.group(2) : m.group(3);
+         final Skill skill = skillByName(skillName);
+         if (skill != null && targetStr != null) {
+            try {
+               final int target = Integer.parseInt(targetStr);
+               if (level(skill) >= target) {
+                  return false;
+               }
+            } catch (final NumberFormatException ignored) {
+            }
+         }
+      }
+      return true;
+   }
+
+   /** Looks up a {@link Skill} by name (case-insensitive), or null if none matches. */
+   public static Skill skillByName(final String name) {
+      if (name == null || name.isEmpty()) {
+         return null;
+      }
+      for (final Skill s : Skill.values()) {
+         if (s.getName().equalsIgnoreCase(name.trim())) {
+            return s;
+         }
+      }
+      return null;
+   }
+
+   /** Builds an in-memory snapshot with specific stats and quest states for testing progression logic. */
+   public static PlayerSnapshot ofStats(final int combatLevel, final Map<Skill, Integer> skillLevels,
+      final Map<Quest, QuestState> quests) {
+      final PlayerSnapshot s = new PlayerSnapshot();
+      s.loggedIn = true;
+      s.combatLevel = combatLevel;
+      int total = 0;
+      for (final Skill skill : Skill.values()) {
+         final int lvl = skillLevels != null && skillLevels.containsKey(skill) ? skillLevels.get(skill) : 1;
+         s.levels.put(skill, lvl);
+         total += lvl;
+      }
+      s.totalLevel = total;
+      for (final Quest q : Quest.values()) {
+         final QuestState st = quests != null && quests.containsKey(q) ? quests.get(q) : QuestState.NOT_STARTED;
+         s.questStates.put(q.getName(), st);
+         if (st == QuestState.IN_PROGRESS) {
+            s.questsInProgress.add(q.getName());
+         } else if (st == QuestState.FINISHED) {
+            s.questsCompleted++;
+            s.questsCompletedList.add(q.getName());
+         } else {
+            s.questsNotStarted.add(q.getName());
+         }
+      }
+      return s;
+   }
+
    /** Player position as text for the LLM. */
    public String locationText() {
       if (location == null) {
@@ -363,6 +544,17 @@ public final class PlayerSnapshot {
       }
       sb.append('\n');
       sb.append("Quests completed: ").append(questsCompleted).append('\n');
+      if (questsInProgress.isEmpty() && questsNotStarted.isEmpty()) {
+         sb.append("Quest status: ALL quests are FINISHED. Never suggest doing or completing any quest.\n");
+      } else if (questsCompleted == 0) {
+         sb.append("Completed quests: none (all quests except any in-progress ones are NOT_STARTED)\n");
+      } else if (questsCompletedList.size() <= questsNotStarted.size()) {
+         sb.append("Completed quests (already FINISHED — never suggest these): ")
+            .append(String.join(", ", questsCompletedList)).append('\n');
+      } else {
+         sb.append("Quests not started yet (all other quests not in progress are already FINISHED — never suggest finished quests): ")
+            .append(String.join(", ", questsNotStarted)).append('\n');
+      }
       if (questsInProgress.isEmpty()) {
          sb.append("Quests in progress: none\n");
       } else {

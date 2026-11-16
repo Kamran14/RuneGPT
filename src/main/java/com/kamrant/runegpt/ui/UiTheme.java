@@ -77,4 +77,6 @@ public final class UiTheme {
    public static final String NOTE_OPEN_BANK_ITEMS = "Open your bank once so I can check it too.";
    public static final String NOTE_OPEN_BANK_GEAR = "Open your bank once so I can include banked gear.";
    public static final String NOTE_LOGIN_SUGGESTIONS = "Log in to get suggestions based on your stats.";
+   public static final String NOTE_ALL_QUESTS_DONE = "All quests completed! Ask about any quest below.";
+   public static final String NOTE_ALL_SKILLS_MAXED = "All skills are 99! Ask about post-99 XP or pet hunting below.";
 }
