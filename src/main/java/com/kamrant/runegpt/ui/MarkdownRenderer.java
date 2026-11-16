@@ -29,9 +29,27 @@ public final class MarkdownRenderer {
    private MarkdownRenderer() {
    }
 
+   private static final Pattern IMAGE = Pattern.compile("!\\[[^\\]]*]\\([^)]*\\)");
+   private static final Pattern BR_TAG = Pattern.compile("(?i)<br\\s*/?>");
+   private static final Pattern HTML_TAG = Pattern.compile("</?[a-zA-Z][^>]*>");
+   private static final Pattern EXTRA_BLANKS = Pattern.compile("\n{3,}");
+
+   /**
+    * Cleans up raw LLM output before rendering: drops images and stray HTML tags, turns
+    * {@code <br>} into line breaks, and squeezes runs of blank lines.
+    */
+   static String tidy(final String markdown) {
+      String s = markdown.replace("\r\n", "\n").replace('\r', '\n');
+      s = IMAGE.matcher(s).replaceAll("");
+      s = BR_TAG.matcher(s).replaceAll("\n");
+      s = HTML_TAG.matcher(s).replaceAll("");
+      s = EXTRA_BLANKS.matcher(s).replaceAll("\n\n");
+      return s.trim();
+   }
+
    /** Returns an HTML fragment (no html/body tags). */
    public static String toHtml(final String markdown) {
-      final String[] lines = markdown.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+      final String[] lines = tidy(markdown).split("\n", -1);
       final StringBuilder out = new StringBuilder();
       final List<String> paragraph = new ArrayList<>();
       // Open list tags as a stack of {indent, tag}.
@@ -71,14 +89,14 @@ public final class MarkdownRenderer {
          if (trimmed.contains("|") && i + 1 < lines.length && TABLE_SEPARATOR.matcher(lines[i + 1]).matches()) {
             flushParagraph(out, paragraph);
             closeLists(out, lists, -1);
-            out.append("<table cellspacing=\"0\" cellpadding=\"3\">");
-            appendRow(out, trimmed, "th");
+            final List<String> header = cells(trimmed);
+            final List<List<String>> rows = new ArrayList<>();
             i += 2;
             while (i < lines.length && lines[i].trim().contains("|") && !lines[i].trim().isEmpty()) {
-               appendRow(out, lines[i].trim(), "td");
+               rows.add(cells(lines[i].trim()));
                i++;
             }
-            out.append("</table>");
+            appendTable(out, header, rows);
             continue;
          }
 
@@ -182,7 +200,7 @@ public final class MarkdownRenderer {
       }
    }
 
-   private static void appendRow(final StringBuilder out, final String row, final String cellTag) {
+   private static List<String> cells(final String row) {
       String r = row;
       if (r.startsWith("|")) {
          r = r.substring(1);
@@ -190,11 +208,52 @@ public final class MarkdownRenderer {
       if (r.endsWith("|")) {
          r = r.substring(0, r.length() - 1);
       }
-      out.append("<tr>");
+      final List<String> out = new ArrayList<>();
       for (final String cell : r.split("\\|", -1)) {
-         out.append('<').append(cellTag).append('>').append(inline(cell.trim())).append("</").append(cellTag).append('>');
+         out.add(cell.trim());
       }
-      out.append("</tr>");
+      return out;
+   }
+
+   /**
+    * Two-column tables fit the sidebar and stay tables. Wider ones are re-laid out as stacked
+    * records (first cell in bold, then "Header: value" lines) so nothing runs off the edge.
+    */
+   private static void appendTable(final StringBuilder out, final List<String> header, final List<List<String>> rows) {
+      if (header.size() <= 2) {
+         out.append("<table cellspacing=\"0\" cellpadding=\"2\"><tr>");
+         for (final String h : header) {
+            out.append("<th>").append(inline(h)).append("</th>");
+         }
+         out.append("</tr>");
+         for (final List<String> row : rows) {
+            out.append("<tr>");
+            for (int c = 0; c < header.size(); c++) {
+               out.append("<td>").append(inline(c < row.size() ? row.get(c) : "")).append("</td>");
+            }
+            out.append("</tr>");
+         }
+         out.append("</table>");
+         return;
+      }
+      for (final List<String> row : rows) {
+         if (row.isEmpty()) {
+            continue;
+         }
+         out.append("<p class=\"rec\"><b>").append(inline(row.get(0))).append("</b>");
+         for (int c = 1; c < row.size(); c++) {
+            if (row.get(c).isEmpty()) {
+               continue;
+            }
+            final String label = c < header.size() ? header.get(c) : "";
+            out.append("<br>");
+            if (!label.isEmpty()) {
+               out.append("<span class=\"lbl\">").append(inline(label)).append(":</span> ");
+            }
+            out.append(inline(row.get(c)));
+         }
+         out.append("</p>");
+      }
    }
 
    /** Inline formatting. Code spans are pulled out first so nothing inside them is formatted. */

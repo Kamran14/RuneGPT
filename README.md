@@ -57,11 +57,12 @@ Why?
 ## ✨ Usage
 
 - Open the RuneGPT Panel from the sidebar.
-- **Guides tab**: pick a category (Quests, Monsters, Bosses, Skilling, Money, Minigames) to see suggestions based on your stats and quest progress, e.g. "Continue *quest*" for quests you've started, or "Train *your lowest skill* to *next milestone*".
-    - **Ask** sends the guide to the chat.
-    - **Edit** lets you change its details (e.g. the monster or kill count) or rewrite the whole question. Your edits are saved; **Reset to default** undoes them.
-    - **Other** at the bottom of each category lets you type your own interest.
-- **Chat tab**: answers are formatted (headings, lists, bold, links to the wiki). Ask follow-ups, or press **New chat** to start over.
+- The panel shows a status line (which AI provider is connected), the **chat** on top and collapsible **sections** below: Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker and Minigames. Drag the divider to give the chat or the sections more room.
+- Each section suggests guides based on your stats, gear and quest progress. Press **Ask** for a one-click answer, or click a guide's title to pick optional preferences (attack style, gear budget, fastest/cheapest/AFK) first.
+    - **Edit guide** lets you change its details (e.g. the monster or kill count) or rewrite the whole question. Edits are saved; **Reset to default** undoes them.
+    - **Something else?** at the bottom of each section lets you type your own interest.
+- **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next step, and a checklist of required items marked against your inventory, worn items and bank (open your bank once per session so it can be checked). **Highlight** puts an arrow, outline and a line to the NPC in-game when they're nearby. Anything the AI suggests that the wiki guide doesn't mention is hidden.
+- Answers are formatted for the narrow sidebar: wide tables become stacked lists and stray HTML is stripped.
 - Or just type a question like:
     - "What’s the best setup for Barrows with my stats?"
     - "Whats the best way to level my agility?"

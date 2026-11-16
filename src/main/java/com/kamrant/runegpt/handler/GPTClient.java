@@ -48,6 +48,8 @@ public class GPTClient {
       new GeminiProviderClient(), new ClaudeProviderClient(), new GroqProviderClient());
    private final ConversationHistory history = new ConversationHistory();
    private final Map<LLMProvider, Instant> cooldownUntil = new EnumMap<>(LLMProvider.class);
+   // Provider that answered most recently (null until the first answer, or after all failed).
+   private volatile LLMProvider lastProvider;
 
    @Inject
    public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient) {
@@ -88,6 +90,45 @@ public class GPTClient {
       }
    }
 
+   /** Connection state shown in the panel header. */
+   public enum StatusState {
+      CONNECTED,
+      READY,
+      ERROR
+   }
+
+   public static final class Status {
+      private final StatusState state;
+      private final String text;
+
+      Status(final StatusState state, final String text) {
+         this.state = state;
+         this.text = text;
+      }
+
+      public StatusState getState() {
+         return state;
+      }
+
+      public String getText() {
+         return text;
+      }
+   }
+
+   public Status status() {
+      final List<LLMProviderClient> candidates = orderedCandidates();
+      if (candidates.isEmpty()) {
+         return new Status(StatusState.ERROR, "No API key set");
+      }
+      final LLMProvider last = lastProvider;
+      if (last != null) {
+         return new Status(StatusState.CONNECTED, "Connected (" + last.getDisplayName() + ")");
+      }
+      final int backups = candidates.size() - 1;
+      return new Status(StatusState.READY, "Ready (" + candidates.get(0).provider().getDisplayName()
+         + (backups > 0 ? " + " + backups + " backup" + (backups > 1 ? "s" : "") : "") + ")");
+   }
+
    public void clearConversation() {
       history.clear();
    }
@@ -98,8 +139,22 @@ public class GPTClient {
     */
    public Reply ask(final String prompt, final String playerContext) {
       final String system = LLMConfig.INSTRUCTIONS + "\n\nCurrent player data:\n" + playerContext;
-      final List<ChatMessage> messages = history.withPendingPrompt(prompt);
+      final Reply reply = send(system, history.withPendingPrompt(prompt));
+      if (reply.isSuccess()) {
+         history.addExchange(prompt, reply.getText());
+      }
+      return reply;
+   }
 
+   /**
+    * One-off request with its own system prompt, outside the chat history (e.g. structured quest
+    * steps). Same provider failover as {@link #ask}.
+    */
+   public Reply completeOnce(final String system, final String prompt) {
+      return send(system, java.util.Collections.singletonList(new ChatMessage(ChatMessage.Role.USER, prompt)));
+   }
+
+   private Reply send(final String system, final List<ChatMessage> messages) {
       final List<LLMProviderClient> candidates = orderedCandidates();
       if (candidates.isEmpty()) {
          return new Reply(false, "No API keys set. Add at least one (Gemini, Claude or Groq) in the RuneGPT plugin settings.", null);
@@ -111,7 +166,7 @@ public class GPTClient {
          try {
             final String reply = client.send(httpClient, gson, system, messages, config);
             clearCooldown(provider);
-            history.addExchange(prompt, reply);
+            lastProvider = provider;
             return new Reply(true, reply, provider);
          } catch (final ProviderException e) {
             log.warn("RuneGPT: {} failed, trying next provider: {}", provider, e.getMessage());
@@ -126,6 +181,7 @@ public class GPTClient {
          }
       }
 
+      lastProvider = null;
       return new Reply(false, "All LLM providers are unavailable right now (out of tokens or erroring). "
          + "Try again in a bit.\n\n" + String.join("\n", failures), null);
    }

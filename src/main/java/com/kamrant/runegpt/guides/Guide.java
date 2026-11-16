@@ -1,6 +1,10 @@
 package com.kamrant.runegpt.guides;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,6 +20,8 @@ public final class Guide {
    private String promptTemplate;
    private final LinkedHashMap<String, String> fields;
    private boolean customized;
+   // Optional quick choices (attack style, budget...). Not part of saved edits.
+   private List<GuideOption> options = Collections.emptyList();
 
    public Guide(final String id, final GuideCategory category, final String titleTemplate,
       final String promptTemplate, final Map<String, String> fields) {
@@ -29,7 +35,33 @@ public final class Guide {
    public Guide copy() {
       final Guide g = new Guide(id, category, titleTemplate, promptTemplate, fields);
       g.customized = customized;
+      g.options = options;
       return g;
+   }
+
+   /** Adds optional quick choices; returns this for chaining. */
+   public Guide withOptions(final GuideOption... opts) {
+      this.options = Collections.unmodifiableList(new ArrayList<>(Arrays.asList(opts)));
+      return this;
+   }
+
+   public List<GuideOption> getOptions() {
+      return options;
+   }
+
+   /**
+    * The prompt plus any quick choices the player picked, e.g. "My preferences: Attack style: Ranged."
+    * {@code picks} maps option label to choice; missing labels mean no preference.
+    */
+   public String prompt(final Map<String, String> picks) {
+      final List<String> prefs = new ArrayList<>();
+      for (final GuideOption option : options) {
+         final String pick = picks.get(option.getLabel());
+         if (pick != null) {
+            prefs.add(option.getLabel() + ": " + pick);
+         }
+      }
+      return prefs.isEmpty() ? prompt() : prompt() + "\n\nMy preferences: " + String.join("; ", prefs) + ".";
    }
 
    public String getId() {

@@ -32,12 +32,16 @@ public final class GuideCatalog {
                   "Help me continue the quest {quest}. I'm not sure exactly where I left off, so list the main "
                      + "checkpoints in order so I can find my place, then the remaining steps, the items to bring, "
                      + "and any tricky fights or puzzles.",
-                  fields("quest", quest)));
+                  fields("quest", quest)).withOptions(new GuideOption("Detail", "Quick steps", "Full walkthrough")));
             }
+            out.add(new Guide("quest-continue-custom", category, "Quest helper: {quest}",
+               "Help me with the quest {quest}: where I am in it, the next step and the items I need.",
+               fields("quest", "Cook's Assistant"))
+               .withOptions(new GuideOption("Detail", "Quick steps", "Full walkthrough")));
             out.add(new Guide("quest-next", category, "Which {count} quests next?",
                "Based on my stats and quest progress, recommend the next {count} quests I should do, in order. "
                   + "For each, say why it's worth doing (rewards or unlocks) and confirm I meet the requirements.",
-               fields("count", "3")));
+               fields("count", "3")).withOptions(new GuideOption("Focus", "Unlocks", "XP rewards", "Easiest first")));
             out.add(new Guide("quest-requirements", category, "Requirements for {quest}",
                "What do I still need before I can start {quest}? Check my stats and list missing skill levels and "
                   + "prerequisite quests, with the quickest way to get each.",
@@ -48,26 +52,29 @@ public final class GuideCatalog {
             out.add(new Guide("monster-kill", category, "Kill {count} {monster}",
                "I want to kill {count} {monster}. Tell me the best location, the gear and inventory to bring for "
                   + "my stats, roughly how long it will take, and which drops to look out for.",
-               fields("count", "200", "monster", killTarget(p.getCombatLevel()))));
+               fields("count", "200", "monster", killTarget(p.getCombatLevel())))
+               .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));
             out.add(new Guide("monster-slayer-task", category, "Slayer task: {count} {monster}",
                "My Slayer task is {count} {monster}. Where should I kill them, what gear and inventory should I "
                   + "bring, and is it worth doing, skipping or blocking at my level?",
-               fields("count", "150", "monster", "fire giants")));
+               fields("count", "150", "monster", "fire giants"))
+               .withOptions(GuideOption.ATTACK_STYLE, new GuideOption("Goal", "Fast", "AFK", "Profit")));
             out.add(new Guide("monster-train", category, "Best combat training spot",
-               "Where should I train melee combat right now for good XP per hour? Look at my Attack, Strength, "
-                  + "Defence and Hitpoints, and suggest which stat to train first.",
-               fields()));
+               "Where should I train combat right now for good XP per hour? Look at my combat stats and suggest "
+                  + "which stat to train first.",
+               fields()).withOptions(GuideOption.ATTACK_STYLE, new GuideOption("Goal", "Fast XP", "AFK", "Profit")));
             break;
 
          case BOSSES:
             out.add(new Guide("boss-ready", category, "Am I ready for {boss}?",
                "Am I ready to fight {boss}? Check my stats against what's recommended, suggest gear and inventory, "
                   + "explain the key mechanics, and estimate kills per hour.",
-               fields("boss", bossTarget(p.getCombatLevel()))));
+               fields("boss", bossTarget(p.getCombatLevel())))
+               .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));
             out.add(new Guide("boss-suggest", category, "Bosses for my level",
                "Which bosses suit my stats best right now? Give me {count} options, with what each is good for "
                   + "(profit, unlocks or pets) and what I need before trying.",
-               fields("count", "3")));
+               fields("count", "3")).withOptions(new GuideOption("Goal", "Profit", "Unlocks", "Pets")));
             break;
 
          case SKILLING:
@@ -77,12 +84,13 @@ public final class GuideCatalog {
                "What's the fastest way to train {skill} from my current level to {target}? Compare a fast or "
                   + "expensive method with a cheap or AFK one, with XP per hour and costs.",
                fields("skill", lowest == null ? "Agility" : lowest.getName(),
-                  "target", String.valueOf(nextMilestone(lowLevel)))));
+                  "target", String.valueOf(nextMilestone(lowLevel))))
+               .withOptions(GuideOption.PACE));
             final Skill top = p.highestUnmaxedSkill();
             out.add(new Guide("skill-99", category, "Plan 99 {skill}",
                "Plan my route to 99 {skill} from my current level: methods per level range, total time and "
                   + "cost, and any quests or unlocks that speed it up.",
-               fields("skill", top == null ? "Woodcutting" : top.getName())));
+               fields("skill", top == null ? "Woodcutting" : top.getName())).withOptions(GuideOption.PACE));
             out.add(new Guide("skill-quest-xp", category, "Quests with {skill} XP",
                "Which quests give XP rewards in {skill} that I could use to skip early levels?",
                fields("skill", lowest == null ? "Agility" : lowest.getName())));
@@ -92,19 +100,21 @@ public final class GuideCatalog {
             out.add(new Guide("money-best", category, "Top {count} money makers",
                "Give me the {count} best money making methods for my current stats, with estimated GP per hour, "
                   + "requirements and how active each one is.",
-               fields("count", "5")));
+               fields("count", "5")).withOptions(new GuideOption("Style", "Active", "AFK"),
+               new GuideOption("Type", "Combat", "Skilling", "Either")));
             out.add(new Guide("money-skill", category, "Make money with {skill}",
                "What are the best ways to make money using {skill} at my level? Include GP per hour and startup cost.",
-               fields("skill", p.highestUnmaxedSkill() == null ? "Fishing" : p.highestUnmaxedSkill().getName())));
+               fields("skill", p.highestUnmaxedSkill() == null ? "Fishing" : p.highestUnmaxedSkill().getName()))
+               .withOptions(new GuideOption("Style", "Active", "AFK")));
             out.add(new Guide("money-afk", category, "AFK money making",
                "What are the best low-attention (AFK) money making methods for my stats? Include GP per hour.",
-               fields()));
+               fields()).withOptions(new GuideOption("Type", "Combat", "Skilling", "Either")));
             break;
 
          case MINIGAMES:
             out.add(new Guide("minigame-worth", category, "Minigames worth doing",
                "Which minigames are worth doing for my account right now, and what rewards should I aim for in each?",
-               fields()));
+               fields()).withOptions(new GuideOption("Goal", "XP", "Rewards", "Fun")));
             out.add(new Guide("minigame-guide", category, "Guide to {minigame}",
                "Give me a guide to {minigame}: requirements, how it works, the best strategy, and which rewards to "
                   + "buy first.",

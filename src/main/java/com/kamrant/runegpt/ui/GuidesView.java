@@ -3,19 +3,22 @@ package com.kamrant.runegpt.ui;
 import com.kamrant.runegpt.guides.Guide;
 import com.kamrant.runegpt.guides.GuideCatalog;
 import com.kamrant.runegpt.guides.GuideCategory;
+import com.kamrant.runegpt.guides.GuideOption;
 import com.kamrant.runegpt.guides.GuideStore;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.Dimension;
 import java.awt.GridLayout;
-import java.awt.Rectangle;
+import java.awt.Insets;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -24,90 +27,53 @@ import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
-import javax.swing.JToggleButton;
-import javax.swing.Scrollable;
-import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.MatteBorder;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.ui.PluginPanel;
 
 /**
- * Category picker plus recommended guide cards. Each card can be asked as-is or edited
- * (fields like the monster or the whole prompt). Each category ends with an "Other" box.
+ * Accordion of guide categories (Quest Helper, Combat & Slayer, ...). One section is open at a time.
+ * Each guide card asks in one click; expanding it shows optional quick choices (attack style, budget...)
+ * and an Edit button. Each section ends with an "Other" box for the player's own interest.
  */
 public class GuidesView extends JPanel {
 
-   private static final int PAD = 6;
-   private static final int TEXT_WIDTH = PluginPanel.PANEL_WIDTH - 2 * PAD - 48;
+   private static final Color CARD_BG = ColorScheme.DARK_GRAY_COLOR;
+   private static final Color CARD_HOVER = ColorScheme.DARK_GRAY_HOVER_COLOR;
 
    private final GuideStore store;
    /** (text shown in chat, prompt sent to the LLM) */
    private final BiConsumer<String, String> onAsk;
-   private final Runnable onRefresh;
+   /** Quest name for "Continue quest" guides, which open the quest step assistant instead of plain chat. */
+   private final BiConsumer<String, Map<String, String>> onQuestStep;
+   /** (quest name, prompt) for "Requirements for quest", which checks the quest exists and adds wiki data. */
+   private final BiConsumer<String, String> onQuestRequirements;
 
-   private final Map<GuideCategory, JToggleButton> categoryButtons = new EnumMap<>(GuideCategory.class);
-   private final JPanel cards = new JPanel();
-   private final JLabel status = new JLabel();
-   private final JScrollPane scroll;
+   private final Map<GuideCategory, CollapsibleSection> sections = new EnumMap<>(GuideCategory.class);
+   // Session-only UI state: quick choices per guide and which cards are expanded.
+   private final Map<String, Map<String, String>> picks = new HashMap<>();
+   private final Set<String> expandedCards = new HashSet<>();
 
-   private GuideCategory selected = GuideCategory.QUESTS;
    private PlayerSnapshot snapshot = PlayerSnapshot.LOGGED_OUT;
 
-   public GuidesView(final GuideStore store, final BiConsumer<String, String> onAsk, final Runnable onRefresh) {
+   public GuidesView(final GuideStore store, final BiConsumer<String, String> onAsk,
+      final BiConsumer<String, Map<String, String>> onQuestStep, final BiConsumer<String, String> onQuestRequirements) {
       this.store = store;
       this.onAsk = onAsk;
-      this.onRefresh = onRefresh;
-      setLayout(new BorderLayout());
-      setBackground(ColorScheme.DARK_GRAY_COLOR);
+      this.onQuestStep = onQuestStep;
+      this.onQuestRequirements = onQuestRequirements;
+      setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+      setOpaque(false);
 
-      // Category grid
-      final JPanel grid = new JPanel(new GridLayout(0, 3, 4, 4));
-      grid.setBackground(ColorScheme.DARK_GRAY_COLOR);
       for (final GuideCategory category : GuideCategory.values()) {
-         final JToggleButton b = new JToggleButton(category.getShortName());
-         b.setFont(FontManager.getRunescapeSmallFont());
-         b.setFocusable(false);
-         b.setMargin(new java.awt.Insets(4, 2, 4, 2));
-         b.addActionListener(e -> select(category));
-         categoryButtons.put(category, b);
-         grid.add(b);
+         final CollapsibleSection section = new CollapsibleSection(category.getSectionName(), () -> toggle(category));
+         section.setAlignmentX(Component.LEFT_ALIGNMENT);
+         sections.put(category, section);
+         add(section);
+         add(Box.createVerticalStrut(6));
       }
-
-      status.setFont(FontManager.getRunescapeSmallFont());
-      status.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
-      final JButton refresh = new JButton("↻");
-      refresh.setToolTipText("Refresh suggestions from your current stats and quests");
-      refresh.setFocusable(false);
-      refresh.setMargin(new java.awt.Insets(0, 4, 0, 4));
-      refresh.addActionListener(e -> this.onRefresh.run());
-      final JPanel statusRow = new JPanel(new BorderLayout(4, 0));
-      statusRow.setOpaque(false);
-      statusRow.add(status, BorderLayout.CENTER);
-      statusRow.add(refresh, BorderLayout.EAST);
-
-      final JPanel top = new JPanel(new BorderLayout(0, 6));
-      top.setBackground(ColorScheme.DARK_GRAY_COLOR);
-      top.setBorder(new EmptyBorder(PAD, PAD, PAD, PAD));
-      top.add(grid, BorderLayout.CENTER);
-      top.add(statusRow, BorderLayout.SOUTH);
-      add(top, BorderLayout.NORTH);
-
-      cards.setLayout(new BoxLayout(cards, BoxLayout.Y_AXIS));
-      cards.setOpaque(false);
-      final TrackingPanel list = new TrackingPanel();
-      list.setLayout(new BorderLayout());
-      list.setBackground(ColorScheme.DARK_GRAY_COLOR);
-      list.add(cards, BorderLayout.NORTH);
-      scroll = new JScrollPane(list, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-      scroll.setBorder(null);
-      scroll.getVerticalScrollBar().setUnitIncrement(16);
-      add(scroll, BorderLayout.CENTER);
-
-      select(selected);
+      render();
    }
 
    public void setSnapshot(final PlayerSnapshot snapshot) {
@@ -115,126 +81,191 @@ public class GuidesView extends JPanel {
       render();
    }
 
-   private void select(final GuideCategory category) {
-      selected = category;
-      categoryButtons.forEach((c, b) -> {
-         b.setSelected(c == category);
-         b.setForeground(c == category ? ColorScheme.BRAND_ORANGE : ColorScheme.LIGHT_GRAY_COLOR);
-      });
+   private void toggle(final GuideCategory category) {
+      final CollapsibleSection section = sections.get(category);
+      final boolean open = !section.isExpanded();
+      sections.forEach((c, s) -> s.setExpanded(open && c == category));
       render();
-      scroll.getViewport().setViewPosition(new java.awt.Point(0, 0));
+      if (open) {
+         // Bring the opened section's header to the top of the visible area.
+         javax.swing.SwingUtilities.invokeLater(() -> section.scrollRectToVisible(
+            new java.awt.Rectangle(0, 0, section.getWidth(), Math.max(section.getHeight(), 1))));
+      }
    }
 
    private void render() {
-      status.setText(snapshot.isLoggedIn()
-         ? "Suggested for combat level " + snapshot.getCombatLevel()
-         : "Log in for personalized suggestions");
-
-      cards.removeAll();
-      cards.add(sectionLabel(selected.getFullName()));
-      for (final Guide guide : store.guides(selected, snapshot)) {
-         cards.add(guideCard(guide));
+      for (final GuideCategory category : GuideCategory.values()) {
+         final CollapsibleSection section = sections.get(category);
+         if (category == GuideCategory.QUESTS && !snapshot.getQuestsInProgress().isEmpty()) {
+            section.setBadge(snapshot.getQuestsInProgress().size() + " active");
+         } else {
+            section.setBadge(null);
+         }
+         // Only build the open section's cards.
+         if (section.isExpanded()) {
+            section.setBody(sectionBody(category));
+         }
       }
-      cards.add(otherCard());
-      cards.add(Box.createVerticalStrut(PAD));
-      cards.revalidate();
-      cards.repaint();
+      revalidate();
+      repaint();
    }
 
-   private JComponent sectionLabel(final String text) {
-      final JLabel l = new JLabel(text);
-      l.setFont(FontManager.getRunescapeBoldFont());
-      l.setForeground(Color.WHITE);
-      l.setBorder(new EmptyBorder(2, PAD, 2, PAD));
-      return row(l);
+   private JComponent sectionBody(final GuideCategory category) {
+      final JPanel list = new JPanel();
+      list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+      list.setOpaque(false);
+      if (!snapshot.isLoggedIn()) {
+         list.add(note("Log in to get suggestions based on your stats."));
+      }
+      for (final Guide guide : store.guides(category, snapshot)) {
+         list.add(guideCard(guide));
+         list.add(Box.createVerticalStrut(4));
+      }
+      list.add(otherCard(category));
+      return list;
    }
 
    private JComponent guideCard(final Guide guide) {
-      final JPanel card = new JPanel(new BorderLayout(0, 4));
-      card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-      card.setBorder(new CompoundBorder(
-         new MatteBorder(0, 3, 0, 0, guide.isCustomized() ? ColorScheme.PROGRESS_COMPLETE_COLOR : ColorScheme.BRAND_ORANGE),
-         new EmptyBorder(6, 8, 6, 6)));
+      final boolean expanded = expandedCards.contains(guide.getId());
+      final Map<String, String> guidePicks = picks.computeIfAbsent(guide.getId(), k -> new HashMap<>());
+      final boolean isQuestStep = guide.getId().startsWith("quest-continue-");
 
-      final JLabel title = new JLabel(html(guide.title(), TEXT_WIDTH));
-      title.setFont(FontManager.getRunescapeBoldFont());
-      title.setForeground(Color.WHITE);
-
-      final JLabel preview = new JLabel(html(shorten(guide.prompt(), 90), TEXT_WIDTH));
-      preview.setFont(FontManager.getRunescapeSmallFont());
-      preview.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
-
-      final JPanel text = new JPanel(new BorderLayout(0, 2));
-      text.setOpaque(false);
-      text.add(title, BorderLayout.NORTH);
-      text.add(preview, BorderLayout.CENTER);
+      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 6), CARD_BG, 10);
+      card.setBorder(new EmptyBorder(7, 8, 7, 7));
+      card.setAlignmentX(Component.LEFT_ALIGNMENT);
       if (guide.isCustomized()) {
-         final JLabel edited = new JLabel("Edited by you");
-         edited.setFont(FontManager.getRunescapeSmallFont());
-         edited.setForeground(ColorScheme.PROGRESS_COMPLETE_COLOR);
-         text.add(edited, BorderLayout.SOUTH);
+         card.setOutline(ColorScheme.PROGRESS_COMPLETE_COLOR.darker());
       }
 
-      final JButton ask = smallButton("Ask");
-      ask.addActionListener(e -> onAsk.accept(guide.title(), guide.prompt()));
-      final JButton edit = smallButton("Edit");
-      edit.addActionListener(e -> edit(guide));
+      // Top row: title (click to expand) + one-click Ask.
+      final HtmlPane title = new HtmlPane(Color.WHITE, FontManager.getRunescapeBoldFont());
+      title.setPlainText((isQuestStep ? "▶ " : "") + guide.title() + (guide.isCustomized() ? "  ✎" : ""));
+      title.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+      title.setToolTipText(expanded ? "Hide options" : "Show options");
 
-      final JPanel buttons = new JPanel(new GridLayout(1, 2, 4, 0));
-      buttons.setOpaque(false);
-      buttons.add(edit);
-      buttons.add(ask);
+      final JButton ask = pillButton(isQuestStep ? "Go" : "Ask");
+      final Runnable doAsk = () -> {
+         if (isQuestStep) {
+            onQuestStep.accept(guide.getFields().get("quest"), guidePicks);
+         } else if (guide.getId().equals("quest-requirements")) {
+            onQuestRequirements.accept(guide.getFields().get("quest"), guide.prompt(guidePicks));
+         } else {
+            onAsk.accept(guide.title(), guide.prompt(guidePicks));
+         }
+      };
+      ask.addActionListener(e -> doAsk.run());
 
-      card.add(text, BorderLayout.CENTER);
-      card.add(buttons, BorderLayout.SOUTH);
-      addHover(card, ColorScheme.DARKER_GRAY_COLOR, ColorScheme.DARKER_GRAY_HOVER_COLOR);
-      return row(card);
+      final JPanel top = new JPanel(new BorderLayout(6, 0));
+      top.setOpaque(false);
+      top.add(title, BorderLayout.CENTER);
+      final JPanel askWrap = new JPanel(new BorderLayout());
+      askWrap.setOpaque(false);
+      askWrap.add(ask, BorderLayout.NORTH);
+      top.add(askWrap, BorderLayout.EAST);
+      card.add(top, BorderLayout.NORTH);
+
+      final MouseAdapter expandToggle = new MouseAdapter() {
+         @Override
+         public void mouseClicked(final MouseEvent e) {
+            if (!expandedCards.remove(guide.getId())) {
+               expandedCards.add(guide.getId());
+            }
+            render();
+         }
+
+         @Override
+         public void mouseEntered(final MouseEvent e) {
+            card.setBackground(CARD_HOVER);
+            card.repaint();
+         }
+
+         @Override
+         public void mouseExited(final MouseEvent e) {
+            card.setBackground(CARD_BG);
+            card.repaint();
+         }
+      };
+      title.addMouseListener(expandToggle);
+
+      if (expanded) {
+         final JPanel details = new JPanel();
+         details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
+         details.setOpaque(false);
+
+         final HtmlPane preview = new HtmlPane(ColorScheme.LIGHT_GRAY_COLOR, FontManager.getRunescapeSmallFont());
+         preview.setPlainText(guide.prompt());
+         preview.setAlignmentX(Component.LEFT_ALIGNMENT);
+         details.add(preview);
+
+         for (final GuideOption option : guide.getOptions()) {
+            details.add(Box.createVerticalStrut(6));
+            final ChipGroup chips = new ChipGroup(option, guidePicks.get(option.getLabel()), choice -> {
+               if (choice == null) {
+                  guidePicks.remove(option.getLabel());
+               } else {
+                  guidePicks.put(option.getLabel(), choice);
+               }
+            });
+            chips.setAlignmentX(Component.LEFT_ALIGNMENT);
+            details.add(chips);
+         }
+
+         details.add(Box.createVerticalStrut(8));
+         final JButton edit = pillButton("Edit guide");
+         edit.addActionListener(e -> edit(guide));
+         final JButton askBottom = pillButton(isQuestStep ? "Find my next step" : "Ask");
+         askBottom.addActionListener(e -> doAsk.run());
+         final JPanel buttons = new JPanel(new GridLayout(1, 2, 4, 0));
+         buttons.setOpaque(false);
+         buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
+         buttons.add(edit);
+         buttons.add(askBottom);
+         details.add(buttons);
+         card.add(details, BorderLayout.CENTER);
+      }
+      return card;
    }
 
-   private JComponent otherCard() {
-      final JPanel card = new JPanel(new BorderLayout(0, 4));
-      card.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-      card.setBorder(new CompoundBorder(
-         new MatteBorder(0, 3, 0, 0, ColorScheme.MEDIUM_GRAY_COLOR),
-         new EmptyBorder(6, 8, 6, 6)));
+   private JComponent otherCard(final GuideCategory category) {
+      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 4), CARD_BG, 10);
+      card.setBorder(new EmptyBorder(7, 8, 7, 7));
+      card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-      final JLabel title = new JLabel("Other");
+      final JLabel title = new JLabel("Something else?");
       title.setFont(FontManager.getRunescapeBoldFont());
-      title.setForeground(Color.WHITE);
-      final JLabel hint = new JLabel(html("Something else about " + selected.getFullName().toLowerCase()
-         + "? Type what you're interested in.", TEXT_WIDTH));
-      hint.setFont(FontManager.getRunescapeSmallFont());
-      hint.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+      title.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 
       final JTextField field = new JTextField();
-      field.setBackground(ColorScheme.DARK_GRAY_COLOR);
+      field.setToolTipText("e.g. " + exampleInterest(category));
+      field.setBackground(ColorScheme.DARKER_GRAY_COLOR);
       field.setForeground(Color.WHITE);
       field.setCaretColor(Color.WHITE);
       field.setBorder(BorderFactory.createCompoundBorder(
-         BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR), new EmptyBorder(3, 4, 3, 4)));
-      final JButton ask = smallButton("Ask");
+         BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR.darker()), new EmptyBorder(3, 4, 3, 4)));
+      final JButton ask = pillButton("Ask");
       final Runnable submit = () -> {
          final String interest = field.getText().trim();
          if (!interest.isEmpty()) {
             field.setText("");
-            onAsk.accept(interest, GuideCatalog.otherPrompt(selected, interest));
+            onAsk.accept(interest, GuideCatalog.otherPrompt(category, interest));
          }
       };
       ask.addActionListener(e -> submit.run());
       field.addActionListener(e -> submit.run());
+
+      final JLabel hint = new JLabel("e.g. " + exampleInterest(category));
+      hint.setFont(FontManager.getRunescapeSmallFont());
+      hint.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
 
       final JPanel inputRow = new JPanel(new BorderLayout(4, 0));
       inputRow.setOpaque(false);
       inputRow.add(field, BorderLayout.CENTER);
       inputRow.add(ask, BorderLayout.EAST);
 
-      final JPanel text = new JPanel(new BorderLayout(0, 2));
-      text.setOpaque(false);
-      text.add(title, BorderLayout.NORTH);
-      text.add(hint, BorderLayout.CENTER);
-      card.add(text, BorderLayout.NORTH);
-      card.add(inputRow, BorderLayout.SOUTH);
-      return row(card);
+      card.add(title, BorderLayout.NORTH);
+      card.add(inputRow, BorderLayout.CENTER);
+      card.add(hint, BorderLayout.SOUTH);
+      return card;
    }
 
    private void edit(final Guide original) {
@@ -247,7 +278,7 @@ public class GuidesView extends JPanel {
          case SAVE_AND_ASK:
             store.save(working);
             render();
-            onAsk.accept(working.title(), working.prompt());
+            onAsk.accept(working.title(), working.prompt(picks.getOrDefault(working.getId(), new HashMap<>())));
             break;
          case RESET:
             store.reset(original);
@@ -258,74 +289,36 @@ public class GuidesView extends JPanel {
       }
    }
 
-   private static JComponent row(final JComponent content) {
-      final JPanel row = new JPanel(new BorderLayout());
-      row.setOpaque(false);
-      row.setBorder(new EmptyBorder(PAD, PAD, 0, PAD));
-      row.add(content, BorderLayout.CENTER);
-      row.setAlignmentX(Component.LEFT_ALIGNMENT);
-      return row;
+   private static String exampleInterest(final GuideCategory category) {
+      switch (category) {
+         case QUESTS:
+            return "unlock Fairy rings";
+         case MONSTERS:
+            return "best place for Slayer XP";
+         case BOSSES:
+            return "first raid tips";
+         case SKILLING:
+            return "train Herblore cheaply";
+         case MONEY:
+            return "flipping on the GE";
+         default:
+            return "Tempoross rewards";
+      }
    }
 
-   private static JButton smallButton(final String text) {
+   private static JComponent note(final String text) {
+      final HtmlPane l = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR, FontManager.getRunescapeSmallFont());
+      l.setPlainText(text);
+      l.setBorder(new EmptyBorder(0, 2, 6, 2));
+      l.setAlignmentX(Component.LEFT_ALIGNMENT);
+      return l;
+   }
+
+   static JButton pillButton(final String text) {
       final JButton b = new JButton(text);
       b.setFont(FontManager.getRunescapeSmallFont());
       b.setFocusable(false);
-      b.setMargin(new java.awt.Insets(2, 6, 2, 6));
+      b.setMargin(new Insets(2, 8, 2, 8));
       return b;
-   }
-
-   private static void addHover(final JPanel card, final Color normal, final Color hover) {
-      card.addMouseListener(new MouseAdapter() {
-         @Override
-         public void mouseEntered(final MouseEvent e) {
-            card.setBackground(hover);
-            card.setCursor(Cursor.getDefaultCursor());
-         }
-
-         @Override
-         public void mouseExited(final MouseEvent e) {
-            // Ignore exits into child components.
-            if (!card.contains(e.getPoint())) {
-               card.setBackground(normal);
-            }
-         }
-      });
-   }
-
-   private static String html(final String text, final int width) {
-      return "<html><body style='width:" + width + "px'>" + MarkdownRenderer.escape(text) + "</body></html>";
-   }
-
-   private static String shorten(final String s, final int max) {
-      return s.length() <= max ? s : s.substring(0, max).trim() + "…";
-   }
-
-   /** Tracks viewport width so cards wrap instead of scrolling sideways. */
-   private static final class TrackingPanel extends JPanel implements Scrollable {
-      @Override
-      public Dimension getPreferredScrollableViewportSize() {
-         return getPreferredSize();
-      }
-
-      @Override
-      public int getScrollableUnitIncrement(final Rectangle r, final int o, final int d) {
-         return 16;
-      }
-
-      @Override
-      public int getScrollableBlockIncrement(final Rectangle r, final int o, final int d) {
-         return r.height;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportWidth() {
-         return true;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportHeight() {
-         return false;
-      }
    }
 }
