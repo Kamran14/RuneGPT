@@ -24,7 +24,7 @@ public class ClaudeProviderClient implements LLMProviderClient {
 
    @Override
    public String keyName() {
-      return "claudeApiKey";
+      return RuneGPTConfig.KEY_CLAUDE;
    }
 
    @Override
@@ -49,11 +49,11 @@ public class ClaudeProviderClient implements LLMProviderClient {
 
       final Request.Builder builder = new Request.Builder()
          .url(LLMConfig.CLAUDE_URL)
-         .addHeader("x-api-key", apiKey)
-         .addHeader("anthropic-version", LLMConfig.CLAUDE_API_VERSION)
+         .addHeader(LLMConfig.HEADER_CLAUDE_KEY, apiKey)
+         .addHeader(LLMConfig.HEADER_CLAUDE_VERSION, LLMConfig.CLAUDE_API_VERSION)
          .post(RequestBody.create(JSON, gson.toJson(body)));
       if (ClaudeRequest.supportsFallbacks(model)) {
-         builder.addHeader("anthropic-beta", LLMConfig.CLAUDE_FALLBACK_BETA);
+         builder.addHeader(LLMConfig.HEADER_CLAUDE_BETA, LLMConfig.CLAUDE_FALLBACK_BETA);
       }
       return builder.build();
    }
@@ -76,7 +76,7 @@ public class ClaudeProviderClient implements LLMProviderClient {
          ? json.get("stop_reason").getAsString()
          : "";
       if ("refusal".equals(stopReason)) {
-         throw new ProviderException("declined to answer");
+         throw new ProviderException(LLMConfig.ERR_DECLINED);
       }
 
       // Content is a list of blocks (thinking, text, ...). Only text blocks are shown to the player.
@@ -88,10 +88,10 @@ public class ClaudeProviderClient implements LLMProviderClient {
          }
       }
       if (text.length() == 0) {
-         throw new ProviderException("empty answer returned");
+         throw new ProviderException(LLMConfig.ERR_EMPTY_ANSWER);
       }
       if ("max_tokens".equals(stopReason)) {
-         text.append("\n\n[Response truncated]");
+         text.append(LLMConfig.TRUNCATED_SUFFIX);
       }
       return text.toString();
    }

@@ -3,6 +3,7 @@ package com.kamrant.runegpt.overlay;
 import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.TargetHighlighter;
+import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -33,9 +34,9 @@ import net.runelite.client.ui.overlay.worldmap.WorldMapOverlay;
  */
 public class WorldMapGuideOverlay extends Overlay {
 
-   private static final Color WIKI_COLOR = new Color(80, 220, 255);
-   private static final Color APPROX_COLOR = new Color(210, 210, 210);
-   private static final Color OUTLINE = new Color(0, 0, 0, 180);
+   private static final Color WIKI_COLOR = UiTheme.ACCENT_CYAN;
+   private static final Color APPROX_COLOR = UiTheme.APPROX_GREY;
+   private static final Color OUTLINE = UiTheme.SHADOW_OUTLINE;
    private static final Stroke MAP_DASH = new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f,
       new float[] { 7f, 6f }, 0f);
    private static final Stroke MINI_STROKE = new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);

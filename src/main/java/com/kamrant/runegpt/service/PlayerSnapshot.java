@@ -3,6 +3,7 @@ package com.kamrant.runegpt.service;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.ItemSource;
 import com.kamrant.runegpt.model.OwnedGear;
+import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.quest.QuestProgress;
 import java.util.ArrayList;
@@ -346,7 +347,7 @@ public final class PlayerSnapshot {
    /** Text block sent to the LLM as player context for general questions. */
    public String toContext() {
       if (!loggedIn) {
-         return "The player is not logged in, so their stats are unknown.";
+         return Prompts.LOGGED_OUT_CONTEXT;
       }
       final StringBuilder sb = new StringBuilder();
       sb.append("Combat level: ").append(combatLevel).append('\n');

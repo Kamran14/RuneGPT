@@ -1,9 +1,9 @@
 package com.kamrant.runegpt.quest;
 
+import com.kamrant.runegpt.service.TextUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.inject.Singleton;
@@ -28,7 +28,7 @@ public class QuestJournalCache {
       if (titleWidget == null || titleWidget.isHidden() || titleWidget.getText() == null) {
          return;
       }
-      final String rawTitle = stripTags(titleWidget.getText()).trim();
+      final String rawTitle = TextUtils.stripHtmlTags(titleWidget.getText());
       if (rawTitle.isEmpty()) {
          return;
       }
@@ -95,7 +95,7 @@ public class QuestJournalCache {
          return;
       }
       final String raw = w.getText().trim();
-      final String clean = stripTags(raw).trim();
+      final String clean = TextUtils.stripHtmlTags(raw);
       if (clean.isEmpty()) {
          return;
       }
@@ -106,11 +106,7 @@ public class QuestJournalCache {
       }
    }
 
-   private static String stripTags(final String s) {
-      return s.replaceAll("<br\\s*/?>", " ").replaceAll("<[^>]+>", "").replaceAll("\\s+", " ");
-   }
-
    private static String normalizeKey(final String s) {
-      return s.toLowerCase(Locale.ROOT).replace("’", "'").replace("'", "").replaceAll("[^a-z0-9]+", " ").trim();
+      return TextUtils.normalizeWords(s);
    }
 }

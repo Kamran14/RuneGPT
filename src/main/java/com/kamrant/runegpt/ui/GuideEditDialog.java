@@ -1,6 +1,7 @@
 package com.kamrant.runegpt.ui;
 
 import com.kamrant.runegpt.guides.Guide;
+import com.kamrant.runegpt.service.TextUtils;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -69,7 +70,7 @@ public final class GuideEditDialog {
             fieldInputs.put(e.getKey(), input);
             c.gridy++;
             c.insets = new Insets(0, 0, 2, 0);
-            form.add(label(capitalize(e.getKey())), c);
+            form.add(label(TextUtils.capitalize(e.getKey())), c);
             c.gridy++;
             c.insets = new Insets(0, 0, 8, 0);
             form.add(input, c);
@@ -200,9 +201,5 @@ public final class GuideEditDialog {
       l.setFont(FontManager.getRunescapeSmallFont());
       l.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
       return l;
-   }
-
-   private static String capitalize(final String s) {
-      return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
    }
 }

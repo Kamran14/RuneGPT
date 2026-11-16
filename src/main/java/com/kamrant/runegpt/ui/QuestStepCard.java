@@ -1,17 +1,10 @@
 package com.kamrant.runegpt.ui;
 
 import com.kamrant.runegpt.model.QuestStep;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.GridLayout;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
-import net.runelite.client.ui.ColorScheme;
-import net.runelite.client.ui.FontManager;
-import net.runelite.client.util.LinkBrowser;
 
 /** Renders a {@link QuestStep} as a compact card inside the chat. */
 public final class QuestStepCard {
@@ -25,28 +18,28 @@ public final class QuestStepCard {
       }
       switch (step.getKind()) {
          case STEP:
-            return "Quest helper · OSRS Wiki";
+            return UiTheme.HDR_QUEST_WIKI;
          case NOT_A_QUEST:
-            return "Quest helper";
+            return UiTheme.HDR_QUEST;
          default:
-            return "Quest helper · " + step.getQuest();
+            return UiTheme.HDR_QUEST + " · " + step.getQuest();
       }
    }
 
    public static JComponent build(final QuestStep step, final QuestStepActions actions) {
-      final JPanel p = column();
+      final JPanel p = CardWidgets.column();
       switch (step.getKind()) {
          case NOT_A_QUEST:
             buildNotAQuest(p, step, actions);
             break;
          case COMPLETE:
-            add(p, title(step.getQuest()));
-            add(p, text("You've already completed this quest.", ChatView.TEXT));
-            add(p, Box.createVerticalStrut(6));
-            add(p, buttons(wikiButton(step.getWikiUrl(), "Open on wiki")));
+            CardWidgets.addLeft(p, CardWidgets.title(step.getQuest()));
+            CardWidgets.addLeft(p, CardWidgets.text("You've already completed this quest.", UiTheme.TEXT_PRIMARY));
+            CardWidgets.addLeft(p, Box.createVerticalStrut(6));
+            CardWidgets.addLeft(p, CardWidgets.buttonRow(CardWidgets.wikiButton(step.getWikiUrl(), UiTheme.BTN_OPEN_WIKI)));
             break;
          case ERROR:
-            add(p, text(step.getMessage(), ChatView.TEXT));
+            CardWidgets.addLeft(p, CardWidgets.text(step.getMessage(), UiTheme.TEXT_PRIMARY));
             break;
          default:
             buildStep(p, step, actions);
@@ -55,106 +48,55 @@ public final class QuestStepCard {
    }
 
    private static void buildNotAQuest(final JPanel p, final QuestStep step, final QuestStepActions actions) {
-      add(p, text("“" + step.getInput() + "” isn't a quest in OSRS.", ChatView.TEXT));
+      CardWidgets.addLeft(p, CardWidgets.text("“" + step.getInput() + "” isn't a quest in OSRS.", UiTheme.TEXT_PRIMARY));
       if (!step.getWikiMatches().isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, small("On the OSRS Wiki that name matches: " + String.join(", ", step.getWikiMatches()) + "."));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.small(
+            "On the OSRS Wiki that name matches: " + String.join(", ", step.getWikiMatches()) + "."));
       }
       if (!step.getSuggestions().isEmpty()) {
-         add(p, Box.createVerticalStrut(6));
-         add(p, label("Did you mean"));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(6));
+         CardWidgets.addLeft(p, CardWidgets.label("Did you mean"));
          for (final String quest : step.getSuggestions()) {
-            final JButton b = GuidesView.pillButton(quest);
+            final JButton b = CardWidgets.pillButton(quest);
             b.addActionListener(e -> actions.useQuest(quest));
-            add(p, Box.createVerticalStrut(3));
-            add(p, buttons(b));
+            CardWidgets.addLeft(p, Box.createVerticalStrut(3));
+            CardWidgets.addLeft(p, CardWidgets.buttonRow(b));
          }
       }
    }
 
    private static void buildStep(final JPanel p, final QuestStep step, final QuestStepActions actions) {
-      add(p, title(step.getQuest()));
+      CardWidgets.addLeft(p, CardWidgets.title(step.getQuest()));
       if (!step.getProgress().isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, label("Where you are" + (step.getConfidence().isEmpty() ? "" : " (" + step.getConfidence() + " confidence)")));
-         add(p, text(step.getProgress(), ChatView.TEXT));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.label("Where you are"
+            + (step.getConfidence().isEmpty() ? "" : " (" + step.getConfidence() + " confidence)")));
+         CardWidgets.addLeft(p, CardWidgets.text(step.getProgress(), UiTheme.TEXT_PRIMARY));
       }
-      add(p, Box.createVerticalStrut(6));
-      add(p, label("Steps"));
+      CardWidgets.addLeft(p, Box.createVerticalStrut(6));
+      CardWidgets.addLeft(p, CardWidgets.label(UiTheme.LBL_STEPS));
 
-      final JButton track = GuidesView.pillButton("Track guide");
-      track.setToolTipText("Live checklist, in-game overlay, map marker and NPC highlight");
+      final JButton track = CardWidgets.pillButton(UiTheme.BTN_TRACK_GUIDE);
+      track.setToolTipText(UiTheme.TIP_TRACK_GUIDE);
       track.addActionListener(e -> actions.track(step.toGuidePlan()));
-      add(p, GuidePlanView.build(step.toGuidePlan(), true, track));
+      CardWidgets.addLeft(p, GuidePlanView.build(step.toGuidePlan(), true, track));
 
       if (!step.getItems().isEmpty() && !step.isBankKnown()) {
-         add(p, small("Open your bank once so I can check it too."));
+         CardWidgets.addLeft(p, CardWidgets.small(UiTheme.NOTE_OPEN_BANK_ITEMS));
       }
       if (!step.getTip().isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, small("Tip: " + step.getTip()));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.small("Tip: " + step.getTip()));
       }
 
-      add(p, Box.createVerticalStrut(4));
-      final JButton done = GuidesView.pillButton("Done, next step");
+      CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+      final JButton done = CardWidgets.pillButton(UiTheme.BTN_DONE_NEXT);
       done.addActionListener(e -> actions.nextStep(step.getQuest(), step.getNextStep()));
       if (step.getWikiUrl() != null && !step.getWikiUrl().isEmpty()) {
-         add(p, buttons(done, wikiButton(step.getWikiUrl(), "Wiki guide")));
+         CardWidgets.addLeft(p, CardWidgets.buttonRow(done, CardWidgets.wikiButton(step.getWikiUrl(), UiTheme.BTN_WIKI_GUIDE)));
       } else {
-         add(p, buttons(done));
+         CardWidgets.addLeft(p, CardWidgets.buttonRow(done));
       }
-   }
-
-   private static JButton wikiButton(final String url, final String text) {
-      final JButton b = GuidesView.pillButton(text);
-      b.addActionListener(e -> LinkBrowser.browse(url));
-      return b;
-   }
-
-   private static JPanel column() {
-      final JPanel p = new JPanel();
-      p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-      p.setOpaque(false);
-      return p;
-   }
-
-   private static JComponent title(final String text) {
-      final HtmlPane t = new HtmlPane(ColorScheme.BRAND_ORANGE, FontManager.getRunescapeBoldFont());
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent label(final String text) {
-      final HtmlPane l = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR.brighter(), FontManager.getRunescapeSmallFont());
-      l.setPlainText(text);
-      return l;
-   }
-
-   private static JComponent text(final String text, final Color color) {
-      final HtmlPane t = new HtmlPane(color);
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent small(final String text) {
-      final HtmlPane t = new HtmlPane(ColorScheme.LIGHT_GRAY_COLOR, FontManager.getRunescapeSmallFont());
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent buttons(final JButton... buttons) {
-      final JPanel row = new JPanel(new GridLayout(1, buttons.length, 4, 0));
-      row.setOpaque(false);
-      for (final JButton b : buttons) {
-         row.add(b);
-      }
-      return row;
-   }
-
-   private static void add(final JPanel p, final Component c) {
-      if (c instanceof JComponent) {
-         ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-      }
-      p.add(c);
    }
 }

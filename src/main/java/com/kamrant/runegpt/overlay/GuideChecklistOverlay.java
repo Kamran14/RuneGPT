@@ -6,7 +6,8 @@ import com.kamrant.runegpt.model.GuideItemKind;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.service.GuideTracker;
-import java.awt.Color;
+import com.kamrant.runegpt.service.TextUtils;
+import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.util.List;
@@ -24,10 +25,6 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
  */
 public class GuideChecklistOverlay extends OverlayPanel {
 
-   private static final Color MUTED = new Color(190, 190, 190);
-   private static final Color TARGET = new Color(80, 220, 255);
-   private static final Color CURRENT_STEP = new Color(255, 120, 55);
-   private static final Color DONE_GREEN = new Color(90, 200, 90);
    private static final int MAX_NAME_CHARS = 22;
 
    private final GuideTracker tracker;
@@ -48,7 +45,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
          return null;
       }
       panelComponent.getChildren().add(TitleComponent.builder()
-         .text(shorten(plan.getTitle(), 28))
+         .text(TextUtils.shorten(plan.getTitle(), 28))
          .color(ColorScheme.BRAND_ORANGE)
          .build());
 
@@ -58,20 +55,20 @@ public class GuideChecklistOverlay extends OverlayPanel {
          if (cur >= steps.size()) {
             panelComponent.getChildren().add(LineComponent.builder()
                .left("✓ All " + steps.size() + " steps done")
-               .leftColor(DONE_GREEN)
+               .leftColor(UiTheme.READY_GREEN)
                .build());
          } else {
             if (steps.size() > 1) {
                panelComponent.getChildren().add(LineComponent.builder()
                   .left("Step " + (cur + 1) + "/" + steps.size())
-                  .leftColor(CURRENT_STEP)
+                  .leftColor(UiTheme.ACTIVE_STEP_ORANGE)
                   .right(cur > 0 ? cur + " done ✓" : "")
-                  .rightColor(DONE_GREEN)
+                  .rightColor(UiTheme.READY_GREEN)
                   .build());
             }
             panelComponent.getChildren().add(LineComponent.builder()
                .left("▶ " + steps.get(cur))
-               .leftColor(CURRENT_STEP)
+               .leftColor(UiTheme.ACTIVE_STEP_ORANGE)
                .build());
          }
       }
@@ -83,7 +80,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
          }
          final String name = (item.getQuantity() > 1 ? item.getQuantity() + " x " : "") + item.getName();
          panelComponent.getChildren().add(LineComponent.builder()
-            .left((item.getKind() == GuideItemKind.EQUIP ? "⚔ " : "") + shorten(name, MAX_NAME_CHARS))
+            .left((item.getKind() == GuideItemKind.EQUIP ? "⚔ " : "") + TextUtils.shorten(name, MAX_NAME_CHARS))
             .leftColor(item.getStatus().getColor())
             .right(item.getStatus().getLabel())
             .rightColor(item.getStatus().getColor())
@@ -91,34 +88,31 @@ public class GuideChecklistOverlay extends OverlayPanel {
       }
       if (!plan.getItems().isEmpty()) {
          panelComponent.getChildren().add(LineComponent.builder()
-            .left("Ready")
-            .leftColor(MUTED)
+            .left(UiTheme.LBL_READY)
+            .leftColor(UiTheme.OVERLAY_MUTED)
             .right(ready + "/" + plan.getItems().size())
-            .rightColor(ready == plan.getItems().size() ? DONE_GREEN : MUTED)
+            .rightColor(ready == plan.getItems().size() ? UiTheme.READY_GREEN : UiTheme.OVERLAY_MUTED)
             .build());
       }
 
       final WorldTarget where = plan.getLocation() != null ? plan.getLocation() : plan.getNpc();
       if (where != null) {
          panelComponent.getChildren().add(LineComponent.builder()
-            .left("Go to: " + shorten(where.getName(), MAX_NAME_CHARS) + (where.isApproximate() ? " (approx.)" : ""))
-            .leftColor(TARGET)
+            .left(UiTheme.LBL_GO_TO + ": " + TextUtils.shorten(where.getName(), MAX_NAME_CHARS)
+               + (where.isApproximate() ? " (approx.)" : ""))
+            .leftColor(UiTheme.ACCENT_CYAN)
             .build());
          final String dir = tracker.directionText();
          if (!dir.isEmpty()) {
-            panelComponent.getChildren().add(LineComponent.builder().left(dir).leftColor(MUTED).build());
+            panelComponent.getChildren().add(LineComponent.builder().left(dir).leftColor(UiTheme.OVERLAY_MUTED).build());
          }
       }
       if (plan.getNpc() != null && plan.getLocation() != null) {
          panelComponent.getChildren().add(LineComponent.builder()
-            .left("Find: " + shorten(plan.getNpc().getName(), MAX_NAME_CHARS))
-            .leftColor(TARGET)
+            .left(UiTheme.LBL_FIND + ": " + TextUtils.shorten(plan.getNpc().getName(), MAX_NAME_CHARS))
+            .leftColor(UiTheme.ACCENT_CYAN)
             .build());
       }
       return super.render(g);
-   }
-
-   private static String shorten(final String s, final int max) {
-      return s.length() <= max ? s : s.substring(0, max - 1) + "…";
    }
 }

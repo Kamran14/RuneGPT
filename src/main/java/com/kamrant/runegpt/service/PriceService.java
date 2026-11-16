@@ -231,7 +231,7 @@ public class PriceService {
       if (text == null || text.isEmpty() || index.isEmpty()) {
          return Collections.emptyList();
       }
-      final String cleaned = normalizeWords(text);
+      final String cleaned = TextUtils.normalizeWords(text);
       if (cleaned.isEmpty()) {
          return Collections.emptyList();
       }
@@ -335,15 +335,6 @@ public class PriceService {
          .replace("'", "")
          .replaceAll("\\((\\d+)\\)", " ($1) ")
          .replaceAll("[^a-z0-9()]+", " ")
-         .trim()
-         .replaceAll("\\s+", " ");
-   }
-
-   private static String normalizeWords(final String s) {
-      return s.toLowerCase(Locale.ROOT)
-         .replace("’", "'")
-         .replace("'", "")
-         .replaceAll("[^a-z0-9]+", " ")
          .trim()
          .replaceAll("\\s+", " ");
    }

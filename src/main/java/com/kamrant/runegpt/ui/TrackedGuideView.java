@@ -2,14 +2,11 @@ package com.kamrant.runegpt.ui;
 
 import com.kamrant.runegpt.model.GuidePlan;
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Cursor;
-import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.function.IntConsumer;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -33,20 +30,20 @@ public class TrackedGuideView extends RoundedPanel {
    private GuidePlan plan;
 
    public TrackedGuideView(final Runnable onStop, final IntConsumer onSelectStep) {
-      super(new BorderLayout(0, 6), new Color(28, 40, 46), 12);
+      super(new BorderLayout(0, 6), UiTheme.TRACKED_BG, 12);
       this.onSelectStep = onSelectStep;
-      setOutline(new Color(80, 220, 255, 120));
+      setOutline(UiTheme.ACCENT_CYAN_OUTLINE);
       setBorder(new EmptyBorder(7, 8, 8, 8));
 
       title.setFont(FontManager.getRunescapeBoldFont());
-      title.setForeground(new Color(80, 220, 255));
+      title.setForeground(UiTheme.ACCENT_CYAN);
       summary.setFont(FontManager.getRunescapeSmallFont());
       summary.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
       chevron.setFont(FontManager.getRunescapeBoldFont());
       chevron.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 
-      final JButton stop = GuidesView.pillButton("Stop");
-      stop.setToolTipText("Stop tracking this guide and remove markers");
+      final JButton stop = CardWidgets.pillButton(UiTheme.BTN_STOP);
+      stop.setToolTipText(UiTheme.TIP_STOP_TRACKING);
       stop.addActionListener(e -> onStop.run());
 
       final JPanel text = new JPanel(new BorderLayout());
@@ -97,29 +94,22 @@ public class TrackedGuideView extends RoundedPanel {
       chevron.setText(expanded ? "▴" : "▾");
       body.removeAll();
       if (expanded) {
-         final JPanel col = new JPanel();
-         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
-         col.setOpaque(false);
-         col.add(GuidePlanView.build(plan, true, null, onSelectStep));
+         final JPanel col = CardWidgets.column();
+         CardWidgets.addLeft(col, GuidePlanView.build(plan, true, null, onSelectStep));
 
          if (plan.getSteps().size() > 1) {
-            col.add(Box.createVerticalStrut(6));
+            CardWidgets.addLeft(col, Box.createVerticalStrut(6));
             final int cur = plan.getCurrentStep();
             final int total = plan.getSteps().size();
-            final JButton prev = GuidesView.pillButton("◀ Prev");
+            final JButton prev = CardWidgets.pillButton(UiTheme.BTN_PREV_STEP);
             prev.setEnabled(cur > 0);
             prev.addActionListener(e -> onSelectStep.accept(Math.max(0, cur - 1)));
 
-            final JButton next = GuidesView.pillButton(cur < total ? "Done · Next ▶" : "All done ✓");
+            final JButton next = CardWidgets.pillButton(cur < total ? UiTheme.BTN_NEXT_STEP : UiTheme.BTN_ALL_DONE);
             next.setEnabled(cur < total);
             next.addActionListener(e -> onSelectStep.accept(Math.min(total, cur + 1)));
 
-            final JPanel stepButtons = new JPanel(new GridLayout(1, 2, 4, 0));
-            stepButtons.setOpaque(false);
-            stepButtons.setAlignmentX(LEFT_ALIGNMENT);
-            stepButtons.add(prev);
-            stepButtons.add(next);
-            col.add(stepButtons);
+            CardWidgets.addLeft(col, CardWidgets.buttonRow(prev, next));
          }
          body.add(col, BorderLayout.CENTER);
       }

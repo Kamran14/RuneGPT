@@ -39,9 +39,6 @@ import net.runelite.client.ui.FontManager;
  */
 public class GuidesView extends JPanel {
 
-   private static final Color CARD_BG = ColorScheme.DARK_GRAY_COLOR;
-   private static final Color CARD_HOVER = ColorScheme.DARK_GRAY_HOVER_COLOR;
-
    private final GuideStore store;
    /** (text shown in chat, prompt sent to the LLM) */
    private final BiConsumer<String, String> onAsk;
@@ -120,7 +117,7 @@ public class GuidesView extends JPanel {
       list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
       list.setOpaque(false);
       if (!snapshot.isLoggedIn()) {
-         list.add(note("Log in to get suggestions based on your stats."));
+         list.add(note(UiTheme.NOTE_LOGIN_SUGGESTIONS));
       }
       for (final Guide guide : store.guides(category, snapshot)) {
          list.add(guideCard(guide));
@@ -138,7 +135,7 @@ public class GuidesView extends JPanel {
       final boolean isTool = isQuestStep || isGearOptimize;
       final String directTaskTarget = directTaskTarget(guide);
 
-      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 6), CARD_BG, 10);
+      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 6), UiTheme.CARD_BG, 10);
       card.setBorder(new EmptyBorder(7, 8, 7, 7));
       card.setAlignmentX(Component.LEFT_ALIGNMENT);
       if (guide.isCustomized()) {
@@ -151,7 +148,7 @@ public class GuidesView extends JPanel {
       title.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
       title.setToolTipText(expanded ? "Hide options" : "Show options");
 
-      final JButton ask = pillButton(isTool ? "Go" : "Ask");
+      final JButton ask = CardWidgets.pillButton(isTool ? UiTheme.BTN_GO : UiTheme.BTN_ASK);
       final Runnable doAsk = () -> runGuide(guide, guidePicks);
       ask.addActionListener(e -> doAsk.run());
 
@@ -175,13 +172,13 @@ public class GuidesView extends JPanel {
 
          @Override
          public void mouseEntered(final MouseEvent e) {
-            card.setBackground(CARD_HOVER);
+            card.setBackground(UiTheme.CARD_HOVER);
             card.repaint();
          }
 
          @Override
          public void mouseExited(final MouseEvent e) {
-            card.setBackground(CARD_BG);
+            card.setBackground(UiTheme.CARD_BG);
             card.repaint();
          }
       };
@@ -211,28 +208,23 @@ public class GuidesView extends JPanel {
          }
 
          details.add(Box.createVerticalStrut(8));
-         final JButton edit = pillButton("Edit guide");
+         final JButton edit = CardWidgets.pillButton(UiTheme.BTN_EDIT_GUIDE);
          edit.addActionListener(e -> edit(guide));
          final String bottomLabel = isQuestStep ? "Start task"
-            : isGearOptimize ? "Find best gear" : "Ask";
-         final JButton askBottom = pillButton(bottomLabel);
+            : isGearOptimize ? "Find best gear" : UiTheme.BTN_ASK;
+         final JButton askBottom = CardWidgets.pillButton(bottomLabel);
          askBottom.addActionListener(e -> doAsk.run());
-         final JPanel buttons = new JPanel(new GridLayout(1, 2, 4, 0));
-         buttons.setOpaque(false);
+         final JComponent buttons = CardWidgets.buttonRow(edit, askBottom);
          buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
-         buttons.add(edit);
-         buttons.add(askBottom);
          details.add(buttons);
 
          if (!isTool && directTaskTarget != null) {
             details.add(Box.createVerticalStrut(4));
-            final JButton startBtn = pillButton("▶ Start task: " + directTaskTarget);
+            final JButton startBtn = CardWidgets.pillButton(UiTheme.BTN_START_TASK + ": " + directTaskTarget);
             startBtn.setToolTipText("Step-by-step guided view with wiki checklist and in-game navigation");
             startBtn.addActionListener(e -> onStartTask.accept(directTaskTarget, guidePicks));
-            final JPanel startRow = new JPanel(new GridLayout(1, 1));
-            startRow.setOpaque(false);
+            final JComponent startRow = CardWidgets.buttonRow(startBtn);
             startRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-            startRow.add(startBtn);
             details.add(startRow);
          }
          card.add(details, BorderLayout.CENTER);
@@ -276,7 +268,7 @@ public class GuidesView extends JPanel {
    }
 
    private JComponent otherCard(final GuideCategory category) {
-      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 4), CARD_BG, 10);
+      final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 4), UiTheme.CARD_BG, 10);
       card.setBorder(new EmptyBorder(7, 8, 7, 7));
       card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -291,7 +283,7 @@ public class GuidesView extends JPanel {
       field.setCaretColor(Color.WHITE);
       field.setBorder(BorderFactory.createCompoundBorder(
          BorderFactory.createLineBorder(ColorScheme.MEDIUM_GRAY_COLOR.darker()), new EmptyBorder(3, 4, 3, 4)));
-      final JButton ask = pillButton("Ask");
+      final JButton ask = CardWidgets.pillButton(UiTheme.BTN_ASK);
       final Runnable submit = () -> {
          final String interest = field.getText().trim();
          if (!interest.isEmpty()) {
@@ -361,13 +353,5 @@ public class GuidesView extends JPanel {
       l.setBorder(new EmptyBorder(0, 2, 6, 2));
       l.setAlignmentX(Component.LEFT_ALIGNMENT);
       return l;
-   }
-
-   static JButton pillButton(final String text) {
-      final JButton b = new JButton(text);
-      b.setFont(FontManager.getRunescapeSmallFont());
-      b.setFocusable(false);
-      b.setMargin(new Insets(2, 8, 2, 8));
-      return b;
    }
 }

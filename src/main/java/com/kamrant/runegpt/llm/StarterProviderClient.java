@@ -97,7 +97,7 @@ public class StarterProviderClient implements LLMProviderClient {
          Thread.sleep(waitMs);
       } catch (final InterruptedException e) {
          Thread.currentThread().interrupt();
-         throw new ProviderException("cancelled");
+         throw new ProviderException(LLMConfig.ERR_CANCELLED);
       }
    }
 
@@ -132,7 +132,7 @@ public class StarterProviderClient implements LLMProviderClient {
       // Plain-text reply (our system prompt asks for JSON inside it; AssistantService falls back to Markdown).
       final String text = body == null ? "" : body.trim();
       if (text.isEmpty()) {
-         throw new ProviderException("empty answer returned");
+         throw new ProviderException(LLMConfig.ERR_EMPTY_ANSWER);
       }
       return text;
    }

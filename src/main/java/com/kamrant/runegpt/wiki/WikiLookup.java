@@ -2,6 +2,7 @@ package com.kamrant.runegpt.wiki;
 
 import com.kamrant.runegpt.model.MonsterStats;
 import com.kamrant.runegpt.model.WikiItem;
+import com.kamrant.runegpt.service.TextUtils;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -358,8 +359,7 @@ public class WikiLookup {
       return v != null && v.trim().toLowerCase(Locale.ROOT).startsWith("yes");
    }
 
-   /** Wiki titles start with a capital letter ("knife" -> "Knife"). */
    private static String capitalize(final String s) {
-      return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+      return TextUtils.capitalize(s);
    }
 }

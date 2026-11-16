@@ -2,6 +2,7 @@ package com.kamrant.runegpt.guides;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.kamrant.runegpt.RuneGPTConfig;
 import com.kamrant.runegpt.model.SavedGuide;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import java.util.LinkedHashMap;
@@ -19,7 +20,6 @@ import net.runelite.client.config.ConfigManager;
 @Singleton
 public class GuideStore {
 
-   private static final String GROUP = "RuneGPTConfig";
    private static final String KEY_PREFIX = "guide.";
 
    private final ConfigManager configManager;
@@ -34,7 +34,7 @@ public class GuideStore {
    public List<Guide> guides(final GuideCategory category, final PlayerSnapshot snapshot) {
       final List<Guide> guides = GuideCatalog.defaults(category, snapshot);
       for (final Guide guide : guides) {
-         final String json = configManager.getConfiguration(GROUP, KEY_PREFIX + guide.getId());
+         final String json = configManager.getConfiguration(RuneGPTConfig.GROUP, KEY_PREFIX + guide.getId());
          if (json == null || json.isEmpty()) {
             continue;
          }
@@ -55,10 +55,10 @@ public class GuideStore {
       saved.title = guide.getTitleTemplate();
       saved.prompt = guide.getPromptTemplate();
       saved.fields = new LinkedHashMap<>(guide.getFields());
-      configManager.setConfiguration(GROUP, KEY_PREFIX + guide.getId(), gson.toJson(saved));
+      configManager.setConfiguration(RuneGPTConfig.GROUP, KEY_PREFIX + guide.getId(), gson.toJson(saved));
    }
 
    public void reset(final Guide guide) {
-      configManager.unsetConfiguration(GROUP, KEY_PREFIX + guide.getId());
+      configManager.unsetConfiguration(RuneGPTConfig.GROUP, KEY_PREFIX + guide.getId());
    }
 }

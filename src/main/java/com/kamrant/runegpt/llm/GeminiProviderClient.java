@@ -24,7 +24,7 @@ public class GeminiProviderClient implements LLMProviderClient {
 
    @Override
    public String keyName() {
-      return "apiKey";
+      return RuneGPTConfig.KEY_GEMINI;
    }
 
    @Override
@@ -38,7 +38,7 @@ public class GeminiProviderClient implements LLMProviderClient {
       final GeminiRequest body = GeminiRequest.create(system, history, config.temperature());
       return new Request.Builder()
          .url(LLMConfig.GEMINI_URL)
-         .addHeader("x-goog-api-key", apiKey)
+         .addHeader(LLMConfig.HEADER_GEMINI_KEY, apiKey)
          .post(RequestBody.create(JSON, gson.toJson(body)))
          .build();
    }
@@ -48,11 +48,11 @@ public class GeminiProviderClient implements LLMProviderClient {
       final JsonObject json = gson.fromJson(body, JsonObject.class);
       final JsonArray candidates = json.getAsJsonArray("candidates");
       if (candidates == null || candidates.size() == 0) {
-         throw new ProviderException("no answer returned (prompt may have been blocked)");
+         throw new ProviderException(LLMConfig.ERR_BLOCKED_ANSWER);
       }
       final JsonObject content = candidates.get(0).getAsJsonObject().getAsJsonObject("content");
       if (content == null || !content.has("parts")) {
-         throw new ProviderException("empty answer returned");
+         throw new ProviderException(LLMConfig.ERR_EMPTY_ANSWER);
       }
       final StringBuilder text = new StringBuilder();
       for (final JsonElement part : content.getAsJsonArray("parts")) {
@@ -62,7 +62,7 @@ public class GeminiProviderClient implements LLMProviderClient {
          }
       }
       if (text.length() == 0) {
-         throw new ProviderException("empty answer returned");
+         throw new ProviderException(LLMConfig.ERR_EMPTY_ANSWER);
       }
       return text.toString();
    }

@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import com.kamrant.runegpt.model.QuestMatch;
+import com.kamrant.runegpt.service.TextUtils;
 import net.runelite.api.Quest;
 
 /**
@@ -44,17 +45,9 @@ public final class QuestResolver {
    }
 
    static String normalize(final String s) {
-      String n = s.toLowerCase()
-         .replace("’", "'")
-         // "Cook's" and "cooks" should match.
-         .replace("'", "")
-         .replaceAll("[^a-z0-9 ]", " ")
-         .replaceAll("\\bquest\\b", " ")
-         .replaceAll("\\s+", " ")
-         .trim();
+      final String n = TextUtils.normalizeWords(s).replaceAll("\\bquest\\b", " ").replaceAll("\\s+", " ").trim();
       // Trailing number to roman numeral: "monkey madness 2" -> "monkey madness ii".
-      n = n.replaceAll(" 1$", " i").replaceAll(" 2$", " ii").replaceAll(" 3$", " iii");
-      return n;
+      return n.replaceAll(" 1$", " i").replaceAll(" 2$", " ii").replaceAll(" 3$", " iii");
    }
 
    /** Word overlap plus a bonus when one name contains the other. */

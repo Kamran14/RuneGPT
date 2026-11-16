@@ -142,6 +142,36 @@ public final class Prompts {
    /** Preferences picked with the quick-choice chips, appended to a guide prompt. */
    public static final String PREFERENCES = "\n\nMy preferences: %s.";
 
+   /** Player context when logged out. */
+   public static final String LOGGED_OUT_CONTEXT = "The player is not logged in, so their stats are unknown.";
+
+   // ---------------------------------------------------------------------------------------------
+   // User-facing notices & error messages
+   // ---------------------------------------------------------------------------------------------
+
+   public static final String NOTICE_UNDECRYPTABLE_KEYS =
+      "Your saved %s API key can't be decrypted on this computer. Keys are encrypted with a key that stays on "
+         + "the computer where you entered them, so please re-enter it in the RuneGPT plugin settings.";
+   public static final String NOTICE_NO_API_KEY =
+      "No API key set yet. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings to start "
+         + "(Groq is free and needs no card).";
+   public static final String ERR_NO_KEY_OR_STARTER =
+      "No API key set. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings (Groq is free), "
+         + "or turn on the free starter service.";
+   public static final String ERR_STARTER_UNAVAILABLE =
+      "The free Starter service couldn't answer (%s). It allows about one reply every 45 seconds; try again "
+         + "shortly, or add a free Groq key in the RuneGPT settings for faster, better answers.";
+   public static final String ERR_ALL_PROVIDERS_UNAVAILABLE =
+      "All configured AI services are unavailable right now (out of tokens or erroring). Try again in a bit.\n\n";
+   public static final String ERR_UNREADABLE_AI_REPLY =
+      "The AI's answer couldn't be read. Try again, or open the wiki guide.";
+   public static final String ERR_WIKI_UNREACHABLE =
+      "Couldn't reach the OSRS Wiki (%s). I won't guess quest steps without it; try again in a moment.";
+   public static final String ERR_NO_WIKI_PAGE =
+      "The OSRS Wiki has no page for %s, so I can't give verified steps.";
+   public static final String ERR_NO_NEXT_STEP =
+      "I couldn't work out a next step from the wiki guide. Open the guide to check.";
+
    // ---------------------------------------------------------------------------------------------
    // Guide card templates: title, then the prompt sent when the player presses Ask.
    // ---------------------------------------------------------------------------------------------

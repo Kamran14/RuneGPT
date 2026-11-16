@@ -10,7 +10,6 @@ import com.kamrant.runegpt.model.OwnedGear;
 import com.kamrant.runegpt.service.GearOptimizer;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.GridLayout;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,15 +18,12 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
-import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-import net.runelite.client.util.LinkBrowser;
 
 /**
  * Renders a {@link GearResult} inside the chat: monster defences and weakness from the OSRS Wiki, a
@@ -36,62 +32,57 @@ import net.runelite.client.util.LinkBrowser;
  */
 public final class GearOptimizerCard {
 
-   private static final Color GREEN = new Color(90, 200, 90);
-   private static final Color YELLOW = new Color(240, 200, 60);
-   private static final Color BANK_ORANGE = new Color(235, 145, 70);
-   private static final Color ACCENT = new Color(80, 220, 255);
-
    private GearOptimizerCard() {
    }
 
    public static String header(final GearResult result) {
-      return result.isSuccess() ? "Gear optimizer · OSRS Wiki" : "Gear optimizer";
+      return result.isSuccess() ? UiTheme.HDR_GEAR_WIKI : UiTheme.HDR_GEAR;
    }
 
    public static JComponent build(final GearResult result, final ItemHoldings holdings,
       final BiFunction<GearSetup, ItemHoldings, GuidePlan> toPlan, final Consumer<GuidePlan> onTrack) {
-      final JPanel p = column();
+      final JPanel p = CardWidgets.column();
       if (!result.isSuccess()) {
-         add(p, text(result.getError(), ChatView.TEXT));
+         CardWidgets.addLeft(p, CardWidgets.text(result.getError(), UiTheme.TEXT_PRIMARY));
          return p;
       }
 
       final MonsterStats m = result.getMonster();
-      add(p, title(m.getName() + (m.getCombatLevel() > 0 ? " (lvl " + m.getCombatLevel() + ")" : "")
+      CardWidgets.addLeft(p, CardWidgets.title(m.getName() + (m.getCombatLevel() > 0 ? " (lvl " + m.getCombatLevel() + ")" : "")
          + (result.isOnTask() ? " · on task" : "")));
-      add(p, small(monsterSummary(m)));
+      CardWidgets.addLeft(p, CardWidgets.small(monsterSummary(m)));
 
       final List<GearSetup> setups = result.getSetups();
-      add(p, Box.createVerticalStrut(6));
-      add(p, label("Styles compared (from your gear)"));
+      CardWidgets.addLeft(p, Box.createVerticalStrut(6));
+      CardWidgets.addLeft(p, CardWidgets.label("Styles compared (from your gear)"));
       for (int i = 0; i < setups.size(); i++) {
-         add(p, styleSummaryRow(setups.get(i), i == 0));
+         CardWidgets.addLeft(p, styleSummaryRow(setups.get(i), i == 0));
       }
 
       // Active setup detail panel; when multiple styles are available, pill buttons switch between them.
       final JPanel detailHolder = new JPanel(new BorderLayout());
       detailHolder.setOpaque(false);
       if (setups.size() > 1) {
-         add(p, Box.createVerticalStrut(6));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(6));
          final JPanel switcher = new JPanel(new GridLayout(1, setups.size(), 4, 0));
          switcher.setOpaque(false);
          for (final GearSetup s : setups) {
-            final JButton tab = GuidesView.pillButton(s.getStyle().getLabel());
+            final JButton tab = CardWidgets.pillButton(s.getStyle().getLabel());
             tab.addActionListener(e -> showSetup(detailHolder, result, s, holdings, toPlan, onTrack));
             switcher.add(tab);
          }
-         add(p, switcher);
+         CardWidgets.addLeft(p, switcher);
       }
       showSetup(detailHolder, result, setups.get(0), holdings, toPlan, onTrack);
-      add(p, detailHolder);
+      CardWidgets.addLeft(p, detailHolder);
 
       if (!result.getHidden().isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, small("Skipped (level too low): " + String.join(", ", result.getHidden()) + "."));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.small("Skipped (level too low): " + String.join(", ", result.getHidden()) + "."));
       }
       if (!result.isBankKnown()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, small("Open your bank once so I can include banked gear."));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.small(UiTheme.NOTE_OPEN_BANK_GEAR));
       }
       return p;
    }
@@ -100,30 +91,30 @@ public final class GearOptimizerCard {
       final ItemHoldings holdings, final BiFunction<GearSetup, ItemHoldings, GuidePlan> toPlan,
       final Consumer<GuidePlan> onTrack) {
       holder.removeAll();
-      final JPanel body = column();
+      final JPanel body = CardWidgets.column();
 
-      add(body, Box.createVerticalStrut(6));
-      add(body, label(setup.getStyle().getLabel() + " loadout · "
+      CardWidgets.addLeft(body, Box.createVerticalStrut(6));
+      CardWidgets.addLeft(body, CardWidgets.label(setup.getStyle().getLabel() + " loadout · "
          + String.format(Locale.ROOT, "%.2f DPS", setup.getDps())));
-      add(body, small(setup.getAttack() + " · max hit " + setup.getMaxHit() + " · "
+      CardWidgets.addLeft(body, CardWidgets.small(setup.getAttack() + " · max hit " + setup.getMaxHit() + " · "
          + Math.round(setup.getHitChance() * 100) + "% accuracy"));
-      add(body, Box.createVerticalStrut(4));
+      CardWidgets.addLeft(body, Box.createVerticalStrut(4));
 
       for (final Map.Entry<Integer, OwnedGear> e : setup.getItems().entrySet()) {
-         add(body, gearRow(GearOptimizer.slotName(e.getKey()), e.getValue()));
+         CardWidgets.addLeft(body, gearRow(GearOptimizer.slotName(e.getKey()), e.getValue()));
       }
       if (!setup.getCarry().isEmpty()) {
-         add(body, Box.createVerticalStrut(4));
-         add(body, small("Bring: " + String.join(", ", setup.getCarry())));
+         CardWidgets.addLeft(body, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(body, CardWidgets.small(UiTheme.LBL_BRING + ": " + String.join(", ", setup.getCarry())));
       }
 
-      add(body, Box.createVerticalStrut(8));
-      final JButton track = GuidesView.pillButton("Track " + setup.getStyle().getLabel().toLowerCase(Locale.ROOT) + " setup");
-      track.setToolTipText("Live checklist, in-game overlay, map marker and NPC highlight");
+      CardWidgets.addLeft(body, Box.createVerticalStrut(8));
+      final JButton track = CardWidgets.pillButton(
+         "Track " + setup.getStyle().getLabel().toLowerCase(Locale.ROOT) + " setup");
+      track.setToolTipText(UiTheme.TIP_TRACK_GUIDE);
       track.addActionListener(e -> onTrack.accept(toPlan.apply(setup, holdings)));
-      final JButton wiki = GuidesView.pillButton("Monster wiki");
-      wiki.addActionListener(e -> LinkBrowser.browse(result.getWikiUrl()));
-      add(body, buttons(track, wiki));
+      CardWidgets.addLeft(body, CardWidgets.buttonRow(track,
+         CardWidgets.wikiButton(result.getWikiUrl(), UiTheme.BTN_MONSTER_WIKI)));
 
       holder.add(body, BorderLayout.CENTER);
       holder.revalidate();
@@ -131,7 +122,7 @@ public final class GearOptimizerCard {
    }
 
    private static JComponent styleSummaryRow(final GearSetup s, final boolean winner) {
-      final HtmlPane row = new HtmlPane(winner ? ACCENT : ChatView.TEXT);
+      final HtmlPane row = new HtmlPane(winner ? UiTheme.ACCENT_CYAN : UiTheme.TEXT_PRIMARY);
       final String prefix = winner ? "★ " : "• ";
       row.setHtml(prefix + "<b>" + MarkdownRenderer.escape(s.getStyle().getLabel()) + "</b>: "
          + String.format(Locale.ROOT, "<b>%.2f DPS</b>", s.getDps())
@@ -142,8 +133,8 @@ public final class GearOptimizerCard {
    }
 
    private static JComponent gearRow(final String slot, final OwnedGear g) {
-      final Color color = g.getSource() == ItemSource.WORN ? GREEN
-         : g.getSource() == ItemSource.INVENTORY ? YELLOW : BANK_ORANGE;
+      final Color color = g.getSource() == ItemSource.WORN ? UiTheme.READY_GREEN
+         : g.getSource() == ItemSource.INVENTORY ? UiTheme.EQUIP_YELLOW : UiTheme.BANK_ORANGE;
       final String status = g.getSource() == ItemSource.WORN ? "equipped"
          : g.getSource() == ItemSource.INVENTORY ? "equip it" : "in bank";
 
@@ -152,7 +143,7 @@ public final class GearOptimizerCard {
       dot.setFont(FontManager.getRunescapeBoldFont());
       dot.setBorder(new EmptyBorder(0, 0, 0, 6));
 
-      final HtmlPane text = new HtmlPane(ChatView.TEXT);
+      final HtmlPane text = new HtmlPane(UiTheme.TEXT_PRIMARY);
       text.setHtml("<span class=\"muted\">" + MarkdownRenderer.escape(slot) + ":</span> "
          + MarkdownRenderer.escape(g.getName())
          + " <span class=\"muted\">" + status + "</span>");
@@ -191,52 +182,5 @@ public final class GearOptimizerCard {
          }
       }
       return names[bestIdx] + " (" + (vals[bestIdx] >= 0 ? "+" : "") + vals[bestIdx] + ")";
-   }
-
-   private static JPanel column() {
-      final JPanel p = new JPanel();
-      p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-      p.setOpaque(false);
-      return p;
-   }
-
-   private static JComponent title(final String text) {
-      final HtmlPane t = new HtmlPane(ColorScheme.BRAND_ORANGE, FontManager.getRunescapeBoldFont());
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent label(final String text) {
-      final HtmlPane l = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR.brighter(), FontManager.getRunescapeSmallFont());
-      l.setPlainText(text);
-      return l;
-   }
-
-   private static JComponent text(final String text, final Color color) {
-      final HtmlPane t = new HtmlPane(color);
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent small(final String text) {
-      final HtmlPane t = new HtmlPane(ColorScheme.LIGHT_GRAY_COLOR, FontManager.getRunescapeSmallFont());
-      t.setPlainText(text);
-      return t;
-   }
-
-   private static JComponent buttons(final JButton... buttons) {
-      final JPanel row = new JPanel(new GridLayout(1, buttons.length, 4, 0));
-      row.setOpaque(false);
-      for (final JButton b : buttons) {
-         row.add(b);
-      }
-      return row;
-   }
-
-   private static void add(final JPanel p, final Component c) {
-      if (c instanceof JComponent) {
-         ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-      }
-      p.add(c);
    }
 }

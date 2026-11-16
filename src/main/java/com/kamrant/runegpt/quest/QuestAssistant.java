@@ -91,15 +91,14 @@ public class QuestAssistant {
       try {
          final String main = wiki.raw(quest);
          if (main == null) {
-            return QuestStep.error(quest, "The OSRS Wiki has no page for " + quest + ", so I can't give verified steps.");
+            return QuestStep.error(quest, String.format(Prompts.ERR_NO_WIKI_PAGE, quest));
          }
          final String quick = wiki.raw(quest + "/Quick guide");
          wikiUrl = WikiClient.pageUrl(quick != null ? quest + "/Quick guide" : quest);
          guideText = buildWikiText(quest, main, quick);
       } catch (final IOException e) {
          log.warn("RuneGPT: wiki fetch failed for {}", quest, e);
-         return QuestStep.error(quest, "Couldn't reach the OSRS Wiki (" + e.getMessage() + "). "
-            + "I won't guess quest steps without it; try again in a moment.");
+         return QuestStep.error(quest, String.format(Prompts.ERR_WIKI_UNREACHABLE, e.getMessage()));
       }
 
       // 3. Ask the AI for a structured step.
@@ -110,11 +109,11 @@ public class QuestAssistant {
       }
       final JsonObject json = ResponseParser.extractJson(gson, reply.getText());
       if (json == null) {
-         return QuestStep.error(quest, "The AI's answer couldn't be read. Try again, or open the wiki guide.");
+         return QuestStep.error(quest, Prompts.ERR_UNREADABLE_AI_REPLY);
       }
       final String nextStep = ResponseParser.str(json, "next_step");
       if (nextStep.isEmpty()) {
-         return QuestStep.error(quest, "I couldn't work out a next step from the wiki guide. Open the guide to check.");
+         return QuestStep.error(quest, Prompts.ERR_NO_NEXT_STEP);
       }
 
       // 4. Keep only what the wiki text supports, and look up coordinates for navigation.

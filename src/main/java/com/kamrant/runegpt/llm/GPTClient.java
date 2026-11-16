@@ -3,6 +3,7 @@ package com.kamrant.runegpt.llm;
 import com.google.gson.Gson;
 import com.google.inject.Singleton;
 import com.kamrant.runegpt.RuneGPTConfig;
+import com.kamrant.runegpt.config.LLMConfig;
 import com.kamrant.runegpt.config.LLMProvider;
 import com.kamrant.runegpt.model.ChatMessage;
 import com.kamrant.runegpt.model.ChatRole;
@@ -89,13 +90,10 @@ public class GPTClient {
       final List<String> undecryptable = new ArrayList<>();
       final List<LLMProviderClient> candidates = orderedCandidates(new EnumMap<>(LLMProvider.class), undecryptable);
       if (!undecryptable.isEmpty()) {
-         return "Your saved " + String.join(" and ", undecryptable) + " API key can't be decrypted on this computer. "
-            + "Keys are encrypted with a key that stays on the computer where you entered them, so please re-enter "
-            + "it in the RuneGPT plugin settings.";
+         return String.format(Prompts.NOTICE_UNDECRYPTABLE_KEYS, String.join(" and ", undecryptable));
       }
       if (candidates.isEmpty()) {
-         return "No API key set yet. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings to start "
-            + "(Groq is free and needs no card).";
+         return Prompts.NOTICE_NO_API_KEY;
       }
       return null;
    }
@@ -107,12 +105,9 @@ public class GPTClient {
       final List<LLMProviderClient> candidates = orderedCandidates(keys, undecryptable);
       if (candidates.isEmpty()) {
          if (!undecryptable.isEmpty()) {
-            return LlmReply.failure("Your saved " + String.join(", ", undecryptable) + " key couldn't be decrypted on "
-               + "this computer. Keys are encrypted with a key kept only on the computer where you entered them, "
-               + "so please re-enter it in the RuneGPT plugin settings.");
+            return LlmReply.failure(String.format(Prompts.NOTICE_UNDECRYPTABLE_KEYS, String.join(", ", undecryptable)));
          }
-         return LlmReply.failure("No API key set. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings "
-            + "(Groq is free), or turn on the free starter service.");
+         return LlmReply.failure(Prompts.ERR_NO_KEY_OR_STARTER);
       }
 
       final List<String> failures = new ArrayList<>();
@@ -124,27 +119,24 @@ public class GPTClient {
             return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {
             log.warn("RuneGPT: {} failed, trying next provider: {}", provider, e.getMessage());
-            failures.add(provider.getDisplayName() + ": " + e.getMessage());
+            failures.add(e.getMessage());
             if (e.isQuotaExhausted()) {
                startCooldown(provider, e.getRetryAfter());
             }
          } catch (final RuntimeException e) {
             // Unexpected response shape etc. Don't let one provider's bug block the others.
             log.warn("RuneGPT: {} returned an unreadable response", provider, e);
-            failures.add(provider.getDisplayName() + ": unreadable response");
+            failures.add(LLMConfig.ERR_UNREADABLE);
          }
       }
 
       if (candidates.size() == 1 && candidates.get(0) == starter) {
-         return LlmReply.failure("The free Starter service couldn't answer (" + failures.get(0).replaceFirst("^Starter: ", "")
-            + "). It allows about one reply every 45 seconds; try again shortly, or add a free Groq key in the "
-            + "RuneGPT settings for faster, better answers.");
+         return LlmReply.failure(String.format(Prompts.ERR_STARTER_UNAVAILABLE, failures.get(0)));
       }
-      for (final String name : undecryptable) {
-         failures.add(name + ": saved key can't be decrypted on this computer, please re-enter it");
+      if (!undecryptable.isEmpty()) {
+         failures.add(String.format(Prompts.NOTICE_UNDECRYPTABLE_KEYS, String.join(", ", undecryptable)));
       }
-      return LlmReply.failure("All LLM providers are unavailable right now (out of tokens or erroring). "
-         + "Try again in a bit.\n\n" + String.join("\n", failures));
+      return LlmReply.failure(Prompts.ERR_ALL_PROVIDERS_UNAVAILABLE + String.join("\n", failures));
    }
 
    /**

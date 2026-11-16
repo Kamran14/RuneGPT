@@ -38,13 +38,13 @@ public class ChatView extends JPanel {
    private static final int INPUT_MIN_ROWS = 2;
    private static final int INPUT_MAX_ROWS = 5;
 
-   private static final Color USER_BG = new Color(74, 54, 22);
+   private static final Color USER_BG = UiTheme.USER_BUBBLE_BG;
    private static final Color ASSISTANT_BG = ColorScheme.DARKER_GRAY_COLOR;
-   private static final Color ERROR_BG = new Color(84, 32, 32);
-   private static final Color NOTICE_BG = new Color(44, 40, 28);
+   private static final Color ERROR_BG = UiTheme.ERROR_BUBBLE_BG;
+   private static final Color NOTICE_BG = UiTheme.NOTICE_BUBBLE_BG;
    /** How long after a message is added its resizes still re-scroll the view. */
    private static final long RESCROLL_WINDOW_MS = 3000;
-   static final Color TEXT = new Color(220, 220, 220);
+   static final Color TEXT = UiTheme.TEXT_PRIMARY;
 
    private final ViewportWidthPanel list = new ViewportWidthPanel();
    // Rows stack at the top of the list; BorderLayout.NORTH stops BoxLayout stretching them.
@@ -52,8 +52,8 @@ public class ChatView extends JPanel {
    private final JScrollPane scroll;
    private final PlaceholderTextArea input = new PlaceholderTextArea("Ask about OSRS...");
    private final JScrollPane inputScroll;
-   private final JButton send = GuidesView.pillButton("Send");
-   private final JButton newChat = GuidesView.pillButton("New chat");
+   private final JButton send = CardWidgets.pillButton("Send");
+   private final JButton newChat = CardWidgets.pillButton("New chat");
    private final JComponent emptyState;
 
    private JComponent newestRow;

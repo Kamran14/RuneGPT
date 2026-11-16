@@ -25,7 +25,7 @@ public class GroqProviderClient implements LLMProviderClient {
 
    @Override
    public String keyName() {
-      return "groqApiKey";
+      return RuneGPTConfig.KEY_GROQ;
    }
 
    @Override
@@ -43,7 +43,7 @@ public class GroqProviderClient implements LLMProviderClient {
          model, system, history, config.temperature(), LLMConfig.GROQ_MAX_TOKENS);
       return new Request.Builder()
          .url(LLMConfig.GROQ_URL)
-         .addHeader("Authorization", "Bearer " + apiKey)
+         .addHeader(LLMConfig.HEADER_AUTHORIZATION, LLMConfig.BEARER_PREFIX + apiKey)
          .post(RequestBody.create(JSON, gson.toJson(body)))
          .build();
    }
@@ -53,18 +53,18 @@ public class GroqProviderClient implements LLMProviderClient {
       final JsonObject json = gson.fromJson(body, JsonObject.class);
       final JsonArray choices = json.getAsJsonArray("choices");
       if (choices == null || choices.size() == 0) {
-         throw new ProviderException("no answer returned");
+         throw new ProviderException(LLMConfig.ERR_NO_ANSWER);
       }
       final JsonObject choice = choices.get(0).getAsJsonObject();
       final JsonObject message = choice.getAsJsonObject("message");
       final JsonElement content = message == null ? null : message.get("content");
       if (content == null || content.isJsonNull() || content.getAsString().trim().isEmpty()) {
-         throw new ProviderException("empty answer returned");
+         throw new ProviderException(LLMConfig.ERR_EMPTY_ANSWER);
       }
       final String text = content.getAsString();
       final JsonElement finish = choice.get("finish_reason");
       if (finish != null && !finish.isJsonNull() && "length".equals(finish.getAsString())) {
-         return text + "\n\n[Response truncated]";
+         return text + LLMConfig.TRUNCATED_SUFFIX;
       }
       return text;
    }

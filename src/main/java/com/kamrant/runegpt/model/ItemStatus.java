@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.model;
 
+import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.Color;
 
 /**
@@ -8,17 +9,17 @@ import java.awt.Color;
  */
 public enum ItemStatus {
    /** In the inventory (or worn) and that's all it needs. */
-   READY("ready", new Color(90, 200, 90)),
+   READY("ready", UiTheme.READY_GREEN),
    /** Equipped, as the guide requires. */
-   EQUIPPED("equipped", new Color(90, 200, 90)),
+   EQUIPPED("equipped", UiTheme.READY_GREEN),
    /** Gear that's in the inventory but needs to be equipped. */
-   EQUIP_IT("equip it", new Color(240, 200, 60)),
+   EQUIP_IT("equip it", UiTheme.EQUIP_YELLOW),
    /** Only in the bank. */
-   IN_BANK("in bank", new Color(225, 85, 70)),
+   IN_BANK("in bank", UiTheme.MISSING_RED),
    /** Not in inventory, equipment or (known) bank. */
-   MISSING("missing", new Color(225, 85, 70)),
+   MISSING("missing", UiTheme.MISSING_RED),
    /** Can't tell: bank not seen yet and not carried. */
-   UNKNOWN("not checked", new Color(225, 85, 70));
+   UNKNOWN("not checked", UiTheme.MISSING_RED);
 
    private final String label;
    private final Color color;

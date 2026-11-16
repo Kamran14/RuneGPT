@@ -2,6 +2,7 @@ package com.kamrant.runegpt.overlay;
 
 import com.kamrant.runegpt.service.Navigation;
 import com.kamrant.runegpt.service.TargetHighlighter;
+import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -36,12 +37,12 @@ import net.runelite.client.ui.overlay.OverlayUtil;
  */
 public class TargetHighlightOverlay extends Overlay {
 
-   private static final Color TILE_BORDER = new Color(80, 220, 255);
-   private static final Color TILE_FILL = new Color(80, 220, 255, 55);
-   private static final Color ZONE_BORDER = new Color(80, 220, 255, 110);
-   private static final Color PATH_TILE_BORDER = new Color(255, 145, 55, 200);
-   private static final Color PATH_TILE_FILL = new Color(255, 145, 55, 45);
-   private static final Color DIRECTION_COLOR = new Color(255, 145, 55);
+   private static final Color TILE_BORDER = UiTheme.ACCENT_CYAN;
+   private static final Color TILE_FILL = UiTheme.ACCENT_CYAN_FILL;
+   private static final Color ZONE_BORDER = UiTheme.ACCENT_CYAN_OUTLINE;
+   private static final Color PATH_TILE_BORDER = UiTheme.ACTIVE_STEP_BORDER;
+   private static final Color PATH_TILE_FILL = UiTheme.ACTIVE_STEP_FILL;
+   private static final Color DIRECTION_COLOR = UiTheme.ACTIVE_STEP_ORANGE;
    private static final Stroke TILE_STROKE = new BasicStroke(2f);
    private static final Stroke ZONE_STROKE = new BasicStroke(1.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f,
       new float[] { 5f, 5f }, 0f);

@@ -203,7 +203,7 @@ public class GPTPanel extends PluginPanel {
    /** Show {@code display} in the chat and send {@code prompt} with fresh player context. */
    private void ask(final String display, final String prompt) {
       chatView.addUserMessage(display);
-      chatView.showThinking("Thinking");
+      chatView.showThinking(UiTheme.LBL_THINKING);
       withSnapshot(snapshot -> {
          final AssistantResponse response = assistant.ask(prompt, snapshot);
          SwingUtilities.invokeLater(() -> {
@@ -232,14 +232,10 @@ public class GPTPanel extends PluginPanel {
       if (sugComp == null) {
          return guideComp;
       }
-      final JPanel both = new JPanel();
-      both.setLayout(new BoxLayout(both, BoxLayout.Y_AXIS));
-      both.setOpaque(false);
-      guideComp.setAlignmentX(Component.LEFT_ALIGNMENT);
-      sugComp.setAlignmentX(Component.LEFT_ALIGNMENT);
-      both.add(guideComp);
-      both.add(Box.createVerticalStrut(6));
-      both.add(sugComp);
+      final JPanel both = CardWidgets.column();
+      CardWidgets.addLeft(both, guideComp);
+      CardWidgets.addLeft(both, Box.createVerticalStrut(6));
+      CardWidgets.addLeft(both, sugComp);
       return both;
    }
 
@@ -248,8 +244,8 @@ public class GPTPanel extends PluginPanel {
       if (guide == null) {
          return null;
       }
-      final JButton track = GuidesView.pillButton("Track guide");
-      track.setToolTipText("Live checklist, in-game overlay, map marker and highlights");
+      final JButton track = CardWidgets.pillButton(UiTheme.BTN_TRACK_GUIDE);
+      track.setToolTipText(UiTheme.TIP_TRACK_GUIDE);
       track.addActionListener(e -> tracker.start(guide));
       return GuidePlanView.build(guide, true, track);
    }
@@ -259,29 +255,22 @@ public class GPTPanel extends PluginPanel {
       if (suggestions == null || suggestions.isEmpty()) {
          return null;
       }
-      final JPanel list = new JPanel();
-      list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-      list.setOpaque(false);
-
-      final HtmlPane hdr = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR.brighter(), FontManager.getRunescapeSmallFont());
-      hdr.setPlainText("Start a guided task");
-      hdr.setAlignmentX(Component.LEFT_ALIGNMENT);
-      list.add(hdr);
-      list.add(Box.createVerticalStrut(3));
+      final JPanel list = CardWidgets.column();
+      CardWidgets.addLeft(list, CardWidgets.label("Start a guided task"));
+      CardWidgets.addLeft(list, Box.createVerticalStrut(3));
 
       for (int i = 0; i < suggestions.size(); i++) {
          final TaskSuggestion s = suggestions.get(i);
-         final RoundedPanel row = new RoundedPanel(new BorderLayout(6, 2), new Color(36, 36, 36), 8);
+         final RoundedPanel row = new RoundedPanel(new BorderLayout(6, 2), UiTheme.SUBCARD_BG, 8);
          row.setBorder(new EmptyBorder(5, 6, 5, 6));
-         row.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-         final HtmlPane text = new HtmlPane(ChatView.TEXT);
+         final HtmlPane text = new HtmlPane(UiTheme.TEXT_PRIMARY);
          final String html = "<b>" + MarkdownRenderer.escape(s.getTitle()) + "</b>"
             + (s.getSummary().isEmpty() ? "" : "<br><span class=\"muted\">"
                + MarkdownRenderer.escape(s.getSummary()) + "</span>");
          text.setHtml(html);
 
-         final JButton start = GuidesView.pillButton("▶ Start task");
+         final JButton start = CardWidgets.pillButton(UiTheme.BTN_START_TASK);
          start.setToolTipText("Guide me through " + s.getTitle() + " step by step");
          start.addActionListener(e -> startTask(s.getTitle(), s.getCategory(), Collections.emptyMap(), null));
 
@@ -291,9 +280,9 @@ public class GPTPanel extends PluginPanel {
 
          row.add(text, BorderLayout.CENTER);
          row.add(btnWrap, BorderLayout.EAST);
-         list.add(row);
+         CardWidgets.addLeft(list, row);
          if (i + 1 < suggestions.size()) {
-            list.add(Box.createVerticalStrut(3));
+            CardWidgets.addLeft(list, Box.createVerticalStrut(3));
          }
       }
       return list;
@@ -306,7 +295,7 @@ public class GPTPanel extends PluginPanel {
    private void startTask(final String task, final String category, final Map<String, String> picks,
       final String completedStep) {
       chatView.addUserMessage(completedStep == null ? "Start task: " + task : "Done: " + completedStep);
-      chatView.showThinking("Checking the OSRS Wiki");
+      chatView.showThinking(UiTheme.LBL_CHECKING_WIKI);
       withSnapshot(snapshot -> {
          final QuestStep step = taskAssistant.nextStep(task, category,
             picks == null ? Collections.emptyMap() : picks, snapshot, completedStep);
@@ -322,7 +311,7 @@ public class GPTPanel extends PluginPanel {
    /** Gear optimizer: picks the highest-DPS setup the player owns against one monster or boss. */
    private void gearOptimize(final String target, final Map<String, String> picks) {
       chatView.addUserMessage("Best gear I own for " + target);
-      chatView.showThinking("Checking the OSRS Wiki");
+      chatView.showThinking(UiTheme.LBL_CHECKING_WIKI);
       withSnapshot(snapshot -> {
          final GearResult result = gearOptimizer.optimize(target, picks, snapshot);
          SwingUtilities.invokeLater(() -> chatView.addCardMessage(GearOptimizerCard.header(result),
@@ -334,7 +323,7 @@ public class GPTPanel extends PluginPanel {
    /** "Requirements for quest": refuse made-up quests, otherwise answer from the wiki's requirement data. */
    private void questRequirements(final String quest, final String prompt) {
       chatView.addUserMessage("Requirements for " + quest);
-      chatView.showThinking("Checking the OSRS Wiki");
+      chatView.showThinking(UiTheme.LBL_CHECKING_WIKI);
       withSnapshot(snapshot -> {
          final QuestStep notAQuest = questAssistant.checkQuest(quest);
          if (notAQuest != null) {

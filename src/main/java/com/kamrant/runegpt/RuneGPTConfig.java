@@ -11,9 +11,12 @@ import net.runelite.client.config.ConfigSection;
 public interface RuneGPTConfig extends Config {
 
 	String GROUP = "RuneGPTConfig";
+	String KEY_GEMINI = "apiKey";
+	String KEY_CLAUDE = "claudeApiKey";
+	String KEY_GROQ = "groqApiKey";
 
 	/** Settings holding API keys. They're stored encrypted (see KeyVault). */
-	String[] KEY_SETTINGS = {"apiKey", "claudeApiKey", "groqApiKey"};
+	String[] KEY_SETTINGS = {KEY_GEMINI, KEY_CLAUDE, KEY_GROQ};
 
 	/** What leaves the client, and where. Shown on the providers section; also in the plugin description and README. */
 	String DATA_DISCLOSURE = "Data sent: your questions, skill levels, quest progress, inventory, worn items, bank "
@@ -55,7 +58,7 @@ public interface RuneGPTConfig extends Config {
 	}
 
 	@ConfigItem(
-		keyName = "apiKey",
+		keyName = KEY_GEMINI,
 		name = "Gemini API Key",
 		description = "Key from Google AI Studio (aistudio.google.com). Questions and player data are sent to Google. Stored encrypted; re-enter it on a new computer.",
 		secret = true,
@@ -67,7 +70,7 @@ public interface RuneGPTConfig extends Config {
 	}
 
 	@ConfigItem(
-		keyName = "claudeApiKey",
+		keyName = KEY_CLAUDE,
 		name = "Claude API Key",
 		description = "Key from console.anthropic.com. Questions and player data are sent to Anthropic. Stored encrypted; re-enter it on a new computer.",
 		secret = true,
@@ -90,7 +93,7 @@ public interface RuneGPTConfig extends Config {
 	}
 
 	@ConfigItem(
-		keyName = "groqApiKey",
+		keyName = KEY_GROQ,
 		name = "Groq API Key",
 		description = "Free key from console.groq.com (no card needed). Questions and player data are sent to Groq. Stored encrypted; re-enter it on a new computer.",
 		secret = true,

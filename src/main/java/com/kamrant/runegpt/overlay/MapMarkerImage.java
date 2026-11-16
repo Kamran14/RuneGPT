@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.overlay;
 
+import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -7,7 +8,7 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 
-/** Draws the pin used for the guide's world map marker (cyan/orange = from wiki, grey = AI estimate). */
+/** Draws the pin used for the guide's world map marker (cyan = from wiki, grey = AI estimate). */
 public final class MapMarkerImage {
 
    private static final int SIZE = 22;
@@ -20,7 +21,7 @@ public final class MapMarkerImage {
       final Graphics2D g = img.createGraphics();
       g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-      final Color main = approximate ? new Color(180, 180, 180) : new Color(80, 220, 255);
+      final Color main = approximate ? UiTheme.APPROX_GREY : UiTheme.ACCENT_CYAN;
       // Teardrop pointer down to the bottom center of the icon.
       final Polygon pointer = new Polygon(
          new int[] { 5, SIZE - 5, SIZE / 2 },

@@ -23,9 +23,9 @@ import net.runelite.client.ui.FontManager;
  */
 public class ChipGroup extends JPanel {
 
-   private static final Color CHIP_BG = ColorScheme.DARK_GRAY_COLOR;
-   private static final Color CHIP_HOVER = ColorScheme.DARK_GRAY_HOVER_COLOR;
-   private static final Color CHIP_SELECTED = new Color(110, 72, 14);
+   private static final Color CHIP_BG = UiTheme.CARD_BG;
+   private static final Color CHIP_HOVER = UiTheme.CARD_HOVER;
+   private static final Color CHIP_SELECTED = UiTheme.CHIP_SELECTED_BG;
 
    private final List<RoundedPanel> chips = new ArrayList<>();
    private final List<String> choices;

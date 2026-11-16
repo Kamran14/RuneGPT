@@ -3,26 +3,21 @@ package com.kamrant.runegpt.ui;
 import com.kamrant.runegpt.model.GuideItem;
 import com.kamrant.runegpt.model.GuideItemKind;
 import com.kamrant.runegpt.model.GuidePlan;
-import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.service.PriceService;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Cursor;
-import java.awt.GridLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntConsumer;
 import javax.swing.Box;
-import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
-import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 
 /**
@@ -31,12 +26,6 @@ import net.runelite.client.ui.FontManager;
  * GE prices, then where to go and who to find.
  */
 public final class GuidePlanView {
-
-   private static final Color TARGET = new Color(80, 220, 255);
-   private static final Color STEP_DONE = new Color(90, 200, 90);
-   private static final Color STEP_CURRENT = new Color(255, 115, 50);
-   private static final Color STEP_CURRENT_BG = new Color(68, 36, 22);
-   private static final Color STEP_UPCOMING = new Color(165, 165, 165);
 
    private GuidePlanView() {
    }
@@ -54,21 +43,19 @@ public final class GuidePlanView {
     */
    public static JComponent build(final GuidePlan plan, final boolean showSteps, final JButton action,
       final IntConsumer onSelectStep) {
-      final JPanel p = new JPanel();
-      p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
-      p.setOpaque(false);
+      final JPanel p = CardWidgets.column();
 
       final List<String> steps = plan.getSteps();
       if (showSteps && !steps.isEmpty()) {
          if (steps.size() > 1) {
-            add(p, label(stepProgressTitle(plan)));
-            add(p, Box.createVerticalStrut(2));
+            CardWidgets.addLeft(p, CardWidgets.label(stepProgressTitle(plan)));
+            CardWidgets.addLeft(p, Box.createVerticalStrut(2));
          }
          final int cur = plan.getCurrentStep();
          for (int i = 0; i < steps.size(); i++) {
-            add(p, stepRow(i, steps.get(i), cur, steps.size(), onSelectStep));
+            CardWidgets.addLeft(p, stepRow(i, steps.get(i), cur, steps.size(), onSelectStep));
             if (i + 1 < steps.size()) {
-               add(p, Box.createVerticalStrut(2));
+               CardWidgets.addLeft(p, Box.createVerticalStrut(2));
             }
          }
       }
@@ -79,45 +66,43 @@ public final class GuidePlanView {
          (item.getKind() == GuideItemKind.EQUIP ? wear : bring).add(item);
       }
       if (!wear.isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, label("Wear"));
-         wear.forEach(item -> add(p, itemRow(item)));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.label(UiTheme.LBL_WEAR));
+         wear.forEach(item -> CardWidgets.addLeft(p, itemRow(item)));
       }
       if (!bring.isEmpty()) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, label("Bring"));
-         bring.forEach(item -> add(p, itemRow(item)));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.label(UiTheme.LBL_BRING));
+         bring.forEach(item -> CardWidgets.addLeft(p, itemRow(item)));
       }
       final long missingGp = PriceService.missingCost(plan.getItems());
       if (missingGp > 0) {
-         add(p, Box.createVerticalStrut(3));
-         add(p, small("Missing on GE: ~" + PriceService.formatShort(missingGp)));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(3));
+         CardWidgets.addLeft(p, CardWidgets.small("Missing on GE: ~" + PriceService.formatShort(missingGp)));
       }
 
       if (plan.getLocation() != null || plan.getNpc() != null) {
-         add(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
       }
       if (plan.getLocation() != null) {
-         add(p, target("Go to", plan.getLocation()));
+         CardWidgets.addLeft(p, CardWidgets.targetRow(UiTheme.LBL_GO_TO, plan.getLocation()));
       }
       if (plan.getNpc() != null) {
-         add(p, target("Find", plan.getNpc()));
+         CardWidgets.addLeft(p, CardWidgets.targetRow(UiTheme.LBL_FIND, plan.getNpc()));
       }
       if (plan.getRemovedUnverified() > 0) {
-         add(p, Box.createVerticalStrut(4));
-         add(p, small("Hid " + plan.getRemovedUnverified() + " suggestion(s) the OSRS Wiki has no page for."));
+         CardWidgets.addLeft(p, Box.createVerticalStrut(4));
+         CardWidgets.addLeft(p, CardWidgets.small(
+            "Hid " + plan.getRemovedUnverified() + " suggestion(s) the OSRS Wiki has no page for."));
       }
       if (action != null) {
-         add(p, Box.createVerticalStrut(8));
-         final JPanel row = new JPanel(new GridLayout(1, 1));
-         row.setOpaque(false);
-         row.add(action);
-         add(p, row);
+         CardWidgets.addLeft(p, Box.createVerticalStrut(8));
+         CardWidgets.addLeft(p, CardWidgets.buttonRow(action));
       }
       return p;
    }
 
-   /** "Step 6 of 6 (5 done)" summary for multi-step guides. */
+   /** "Progress · Step 6 of 6 (5 completed)" summary for multi-step guides. */
    public static String stepProgressTitle(final GuidePlan plan) {
       final int total = plan.getSteps().size();
       if (total == 0) {
@@ -131,7 +116,7 @@ public final class GuidePlanView {
          + (done > 0 ? " (" + done + " completed)" : "");
    }
 
-   /** "3/5 ready" summary for headers. */
+   /** "step 6/6 · 3/5 items ready" summary for headers. */
    public static String readySummary(final GuidePlan plan) {
       final List<String> parts = new ArrayList<>();
       if (plan.getSteps().size() > 1) {
@@ -152,7 +137,7 @@ public final class GuidePlanView {
       final boolean done = totalSteps > 1 && idx < currentStep;
       final boolean current = totalSteps == 1 || idx == currentStep;
 
-      final Color color = done ? STEP_DONE : current ? STEP_CURRENT : STEP_UPCOMING;
+      final Color color = done ? UiTheme.READY_GREEN : current ? UiTheme.ACTIVE_STEP_ORANGE : UiTheme.UPCOMING_GREY;
       final String marker = done ? "✓ " : current ? "▶ " : "";
       final String prefix = (idx + 1) + ". " + marker;
 
@@ -165,8 +150,8 @@ public final class GuidePlanView {
 
       final JComponent container;
       if (current && totalSteps > 1) {
-         final RoundedPanel hi = new RoundedPanel(new BorderLayout(), STEP_CURRENT_BG, 8);
-         hi.setOutline(new Color(255, 115, 50, 110));
+         final RoundedPanel hi = new RoundedPanel(new BorderLayout(), UiTheme.ACTIVE_STEP_BG, 8);
+         hi.setOutline(UiTheme.ACTIVE_STEP_OUTLINE);
          hi.setBorder(new EmptyBorder(3, 5, 3, 5));
          hi.add(pane, BorderLayout.CENTER);
          container = hi;
@@ -200,7 +185,7 @@ public final class GuidePlanView {
 
       final String name = (item.getQuantity() > 1 ? item.getQuantity() + " x " : "") + item.getName();
       final String priceNote = item.getTotalPrice() > 0 ? " · " + PriceService.formatShort(item.getTotalPrice()) : "";
-      final HtmlPane text = new HtmlPane(ChatView.TEXT);
+      final HtmlPane text = new HtmlPane(UiTheme.TEXT_PRIMARY);
       text.setHtml(MarkdownRenderer.escape(name) + " <span class=\"muted\">"
          + MarkdownRenderer.escape(item.getStatus().getLabel() + priceNote) + "</span>");
       text.setForeground(color.brighter());
@@ -210,32 +195,5 @@ public final class GuidePlanView {
       row.add(dot, BorderLayout.WEST);
       row.add(text, BorderLayout.CENTER);
       return row;
-   }
-
-   private static JComponent target(final String label, final WorldTarget t) {
-      final String note = t.isApproximate() ? " (approx. location)" : t.getPoint() == null ? " (no map marker)" : "";
-      final HtmlPane pane = new HtmlPane(TARGET);
-      pane.setHtml("<span class=\"lbl\">" + label + ":</span> <b>" + MarkdownRenderer.escape(t.getName()) + "</b>"
-         + "<span class=\"muted\">" + MarkdownRenderer.escape(note) + "</span>");
-      return pane;
-   }
-
-   private static JComponent label(final String text) {
-      final HtmlPane l = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR.brighter(), FontManager.getRunescapeSmallFont());
-      l.setPlainText(text);
-      return l;
-   }
-
-   private static JComponent small(final String text) {
-      final HtmlPane l = new HtmlPane(ColorScheme.LIGHT_GRAY_COLOR, FontManager.getRunescapeSmallFont());
-      l.setPlainText(text);
-      return l;
-   }
-
-   private static void add(final JPanel p, final Component c) {
-      if (c instanceof JComponent) {
-         ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT);
-      }
-      p.add(c);
    }
 }

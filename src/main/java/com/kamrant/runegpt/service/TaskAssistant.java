@@ -16,6 +16,7 @@ import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.quest.QuestAssistant;
 import com.kamrant.runegpt.quest.QuestResolver;
+import com.kamrant.runegpt.ui.UiTheme;
 import com.kamrant.runegpt.wiki.WikiClient;
 import com.kamrant.runegpt.wiki.WikiLookup;
 import com.kamrant.runegpt.wiki.Wikitext;
@@ -84,17 +85,17 @@ public class TaskAssistant {
       final LlmReply reply = gpt.completeOnce(Prompts.TASK_SYSTEM,
          buildPrompt(trimmed, category, picks, player, completedStep, wikiText));
       if (!reply.isSuccess()) {
-         return QuestStep.error(trimmed, reply.getText()).setHeaderLabel("Task helper");
+         return QuestStep.error(trimmed, reply.getText()).setHeaderLabel(UiTheme.HDR_TASK);
       }
       final JsonObject json = ResponseParser.extractJson(gson, reply.getText());
       if (json == null) {
-         return QuestStep.error(trimmed, "The AI's answer couldn't be read. Try again.")
-            .setHeaderLabel("Task helper");
+         return QuestStep.error(trimmed, Prompts.ERR_UNREADABLE_AI_REPLY)
+            .setHeaderLabel(UiTheme.HDR_TASK);
       }
       final String nextStep = ResponseParser.str(json, "next_step");
       if (nextStep.isEmpty()) {
          return QuestStep.error(trimmed, "Couldn't work out the next step for " + trimmed + ".")
-            .setHeaderLabel("Task helper");
+            .setHeaderLabel(UiTheme.HDR_TASK);
       }
 
       // 3. Verify NPC, location and items against the OSRS Wiki.
@@ -163,7 +164,7 @@ public class TaskAssistant {
       }
 
       return QuestStep.of(QuestStepKind.STEP)
-         .setHeaderLabel("Task helper · OSRS Wiki")
+         .setHeaderLabel(UiTheme.HDR_TASK_WIKI)
          .setQuest(wikiTitle != null ? wikiTitle : trimmed)
          .setInput(trimmed)
          .setWikiUrl(wikiUrl)
@@ -184,13 +185,14 @@ public class TaskAssistant {
    /** Returns { resolvedTitle, plainTextExcerpt, pageUrl }. */
    private String[] fetchWikiGuide(final String task, final String category) {
       final List<String> candidates = new ArrayList<>();
+      final String cap = TextUtils.capitalize(task);
       if ("money".equalsIgnoreCase(category)) {
-         candidates.add("Money making guide/" + capitalize(task));
+         candidates.add("Money making guide/" + cap);
       }
       if ("boss".equalsIgnoreCase(category) || "minigame".equalsIgnoreCase(category)) {
-         candidates.add(capitalize(task) + "/Strategies");
+         candidates.add(cap + "/Strategies");
       }
-      candidates.add(capitalize(task));
+      candidates.add(cap);
 
       for (final String title : candidates) {
          try {
@@ -213,7 +215,7 @@ public class TaskAssistant {
             log.debug("RuneGPT: wiki search fetch failed for {}", hit, e);
          }
       }
-      return new String[] { task, "", WikiClient.pageUrl(capitalize(task)) };
+      return new String[] { task, "", WikiClient.pageUrl(cap) };
    }
 
    private String buildPrompt(final String task, final String category, final Map<String, String> picks,
@@ -241,9 +243,5 @@ public class TaskAssistant {
 
    private static String truncate(final String s) {
       return s.length() > MAX_WIKI_CHARS ? s.substring(0, MAX_WIKI_CHARS) + "\n[...truncated]" : s;
-   }
-
-   private static String capitalize(final String s) {
-      return s.isEmpty() ? s : Character.toUpperCase(s.charAt(0)) + s.substring(1);
    }
 }

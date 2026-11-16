@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.quest;
 
+import com.kamrant.runegpt.service.TextUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,10 +61,6 @@ public final class QuestMentions {
    }
 
    private static String normalize(final String s) {
-      return s.toLowerCase()
-         .replace("’", "'")
-         .replace("'", "")
-         .replaceAll("[^a-z0-9]+", " ")
-         .trim();
+      return TextUtils.normalizeWords(s);
    }
 }
