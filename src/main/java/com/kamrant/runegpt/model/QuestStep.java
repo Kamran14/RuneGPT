@@ -8,6 +8,7 @@ import java.util.List;
 public final class QuestStep {
 
    private QuestStepKind kind;
+   private String headerLabel = "";
    private String quest;
    private String input;
    private String wikiUrl;
@@ -56,6 +57,15 @@ public final class QuestStep {
 
    public QuestStepKind getKind() {
       return kind;
+   }
+
+   public String getHeaderLabel() {
+      return headerLabel;
+   }
+
+   public QuestStep setHeaderLabel(final String headerLabel) {
+      this.headerLabel = headerLabel == null ? "" : headerLabel;
+      return this;
    }
 
    public String getQuest() {

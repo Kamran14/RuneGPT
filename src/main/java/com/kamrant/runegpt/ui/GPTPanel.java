@@ -6,6 +6,8 @@ import com.kamrant.runegpt.model.AssistantResponse;
 import com.kamrant.runegpt.model.GearResult;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.QuestStep;
+import com.kamrant.runegpt.model.QuestStepKind;
+import com.kamrant.runegpt.model.TaskSuggestion;
 import com.kamrant.runegpt.quest.QuestAssistant;
 import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.service.AssistantService;
@@ -13,9 +15,13 @@ import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GearOptimizer;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.PlayerSnapshot;
+import com.kamrant.runegpt.service.TaskAssistant;
 import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -23,6 +29,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -35,6 +43,7 @@ import net.runelite.api.Client;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 
 /**
@@ -51,6 +60,7 @@ public class GPTPanel extends PluginPanel {
    private final QuestJournalCache journalCache;
    private final AssistantService assistant;
    private final QuestAssistant questAssistant;
+   private final TaskAssistant taskAssistant;
    private final GearOptimizer gearOptimizer;
    private final GuideTracker tracker;
    private final GPTClient gptClient;
@@ -74,13 +84,13 @@ public class GPTPanel extends PluginPanel {
       }
 
       @Override
-      public void nextStep(final String quest, final String completedStep) {
-         questStep(quest, null, completedStep);
+      public void nextStep(final String questOrTask, final String completedStep) {
+         startTask(questOrTask, "", null, completedStep);
       }
 
       @Override
       public void useQuest(final String quest) {
-         questStep(quest, null, null);
+         startTask(quest, "quest", null, null);
       }
    };
 
@@ -88,7 +98,7 @@ public class GPTPanel extends PluginPanel {
    public GPTPanel(final Client client, final ClientThread clientThread, final ItemManager itemManager,
       final BankCache bankCache, final QuestJournalCache journalCache, final GPTClient gptClient,
       final AssistantService assistant, final GuideStore guideStore, final QuestAssistant questAssistant,
-      final GearOptimizer gearOptimizer, final GuideTracker tracker) {
+      final TaskAssistant taskAssistant, final GearOptimizer gearOptimizer, final GuideTracker tracker) {
       super(false);
       this.client = client;
       this.clientThread = clientThread;
@@ -97,6 +107,7 @@ public class GPTPanel extends PluginPanel {
       this.journalCache = journalCache;
       this.assistant = assistant;
       this.questAssistant = questAssistant;
+      this.taskAssistant = taskAssistant;
       this.gearOptimizer = gearOptimizer;
       this.tracker = tracker;
       this.gptClient = gptClient;
@@ -105,7 +116,8 @@ public class GPTPanel extends PluginPanel {
       setBackground(ColorScheme.DARK_GRAY_COLOR);
       setBorder(new EmptyBorder(6, 6, 6, 6));
 
-      guidesView = new GuidesView(guideStore, this::ask, (quest, picks) -> questStep(quest, picks, null),
+      guidesView = new GuidesView(guideStore, this::ask,
+         (task, picks) -> startTask(task, "", picks, null),
          this::questRequirements, this::gearOptimize);
       chatView = new ChatView(text -> ask(text, text), gptClient::clearConversation);
       trackedView = new TrackedGuideView(tracker::stop, tracker::setStep);
@@ -205,8 +217,30 @@ public class GPTPanel extends PluginPanel {
       if (!response.isSuccess()) {
          chatView.addErrorMessage(response.getAnswer());
       } else {
-         chatView.addAssistantMessage(response.getAnswer(), guideComponent(response.getGuide()));
+         chatView.addAssistantMessage(response.getAnswer(),
+            extraComponent(response.getGuide(), response.getSuggestions()));
       }
+   }
+
+   /** Combines the verified guide checklist and any "Start task" suggestion buttons under the reply. */
+   private JComponent extraComponent(final GuidePlan guide, final List<TaskSuggestion> suggestions) {
+      final JComponent guideComp = guideComponent(guide);
+      final JComponent sugComp = suggestionsComponent(suggestions);
+      if (guideComp == null) {
+         return sugComp;
+      }
+      if (sugComp == null) {
+         return guideComp;
+      }
+      final JPanel both = new JPanel();
+      both.setLayout(new BoxLayout(both, BoxLayout.Y_AXIS));
+      both.setOpaque(false);
+      guideComp.setAlignmentX(Component.LEFT_ALIGNMENT);
+      sugComp.setAlignmentX(Component.LEFT_ALIGNMENT);
+      both.add(guideComp);
+      both.add(Box.createVerticalStrut(6));
+      both.add(sugComp);
+      return both;
    }
 
    /** The guide checklist with a Track button, or null when the reply has nothing to track. */
@@ -220,14 +254,63 @@ public class GPTPanel extends PluginPanel {
       return GuidePlanView.build(guide, true, track);
    }
 
-   /** Quest step assistant: wiki-grounded "where am I and what's next" for one quest. */
-   private void questStep(final String quest, final Map<String, String> picks, final String completedStep) {
-      chatView.addUserMessage(completedStep == null ? "Help me with " + quest : "Done: " + completedStep);
+   /** Renders a "Start task" button for every suggested quest, minigame, money maker, boss or skill method. */
+   private JComponent suggestionsComponent(final List<TaskSuggestion> suggestions) {
+      if (suggestions == null || suggestions.isEmpty()) {
+         return null;
+      }
+      final JPanel list = new JPanel();
+      list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+      list.setOpaque(false);
+
+      final HtmlPane hdr = new HtmlPane(ColorScheme.MEDIUM_GRAY_COLOR.brighter(), FontManager.getRunescapeSmallFont());
+      hdr.setPlainText("Start a guided task");
+      hdr.setAlignmentX(Component.LEFT_ALIGNMENT);
+      list.add(hdr);
+      list.add(Box.createVerticalStrut(3));
+
+      for (int i = 0; i < suggestions.size(); i++) {
+         final TaskSuggestion s = suggestions.get(i);
+         final RoundedPanel row = new RoundedPanel(new BorderLayout(6, 2), new Color(36, 36, 36), 8);
+         row.setBorder(new EmptyBorder(5, 6, 5, 6));
+         row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+         final HtmlPane text = new HtmlPane(ChatView.TEXT);
+         final String html = "<b>" + MarkdownRenderer.escape(s.getTitle()) + "</b>"
+            + (s.getSummary().isEmpty() ? "" : "<br><span class=\"muted\">"
+               + MarkdownRenderer.escape(s.getSummary()) + "</span>");
+         text.setHtml(html);
+
+         final JButton start = GuidesView.pillButton("▶ Start task");
+         start.setToolTipText("Guide me through " + s.getTitle() + " step by step");
+         start.addActionListener(e -> startTask(s.getTitle(), s.getCategory(), Collections.emptyMap(), null));
+
+         final JPanel btnWrap = new JPanel(new BorderLayout());
+         btnWrap.setOpaque(false);
+         btnWrap.add(start, BorderLayout.NORTH);
+
+         row.add(text, BorderLayout.CENTER);
+         row.add(btnWrap, BorderLayout.EAST);
+         list.add(row);
+         if (i + 1 < suggestions.size()) {
+            list.add(Box.createVerticalStrut(3));
+         }
+      }
+      return list;
+   }
+
+   /**
+    * Interactive step-by-step assistant for any quest or activity (minigame, money maker, skilling method,
+    * boss or monster task), grounded in the OSRS Wiki.
+    */
+   private void startTask(final String task, final String category, final Map<String, String> picks,
+      final String completedStep) {
+      chatView.addUserMessage(completedStep == null ? "Start task: " + task : "Done: " + completedStep);
       chatView.showThinking("Checking the OSRS Wiki");
       withSnapshot(snapshot -> {
-         final QuestStep step = questAssistant.nextStep(quest, picks == null ? Collections.emptyMap() : picks,
-            snapshot, completedStep);
-         if (completedStep != null && step.getKind() == com.kamrant.runegpt.model.QuestStepKind.STEP
+         final QuestStep step = taskAssistant.nextStep(task, category,
+            picks == null ? Collections.emptyMap() : picks, snapshot, completedStep);
+         if (completedStep != null && step.getKind() == QuestStepKind.STEP
             && tracker.getActive() != null && step.getQuest().equalsIgnoreCase(tracker.getActive().getTitle())) {
             tracker.start(step.toGuidePlan());
          }

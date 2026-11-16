@@ -34,8 +34,8 @@ import net.runelite.client.ui.FontManager;
 
 /**
  * Accordion of guide categories (Quest Helper, Combat & Slayer, ...). One section is open at a time.
- * Each guide card asks in one click; expanding it shows optional quick choices (attack style, budget...)
- * and an Edit button. Each section ends with an "Other" box for the player's own interest.
+ * Each guide card asks in one click; expanding it shows optional quick choices (attack style, budget...),
+ * an Edit button, and a Start task button for activity guides. Each section ends with an "Other" box.
  */
 public class GuidesView extends JPanel {
 
@@ -45,8 +45,8 @@ public class GuidesView extends JPanel {
    private final GuideStore store;
    /** (text shown in chat, prompt sent to the LLM) */
    private final BiConsumer<String, String> onAsk;
-   /** Quest name for "Continue quest" guides, which open the quest step assistant instead of plain chat. */
-   private final BiConsumer<String, Map<String, String>> onQuestStep;
+   /** (task/quest name, quick choices) -> opens the step-by-step Quest/Task Helper view. */
+   private final BiConsumer<String, Map<String, String>> onStartTask;
    /** (quest name, prompt) for "Requirements for quest", which checks the quest exists and adds wiki data. */
    private final BiConsumer<String, String> onQuestRequirements;
    /** Monster/boss name for "Best gear I own for ...", which runs the gear optimizer from owned items. */
@@ -60,11 +60,12 @@ public class GuidesView extends JPanel {
    private PlayerSnapshot snapshot = PlayerSnapshot.LOGGED_OUT;
 
    public GuidesView(final GuideStore store, final BiConsumer<String, String> onAsk,
-      final BiConsumer<String, Map<String, String>> onQuestStep, final BiConsumer<String, String> onQuestRequirements,
+      final BiConsumer<String, Map<String, String>> onStartTask,
+      final BiConsumer<String, String> onQuestRequirements,
       final BiConsumer<String, Map<String, String>> onGearOptimize) {
       this.store = store;
       this.onAsk = onAsk;
-      this.onQuestStep = onQuestStep;
+      this.onStartTask = onStartTask;
       this.onQuestRequirements = onQuestRequirements;
       this.onGearOptimize = onGearOptimize;
       setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -135,6 +136,7 @@ public class GuidesView extends JPanel {
       final boolean isQuestStep = guide.getId().startsWith(GuideCatalog.QUEST_STEP_PREFIX);
       final boolean isGearOptimize = guide.getId().startsWith(GuideCatalog.GEAR_OPTIMIZER_PREFIX);
       final boolean isTool = isQuestStep || isGearOptimize;
+      final String directTaskTarget = directTaskTarget(guide);
 
       final RoundedPanel card = new RoundedPanel(new BorderLayout(0, 6), CARD_BG, 10);
       card.setBorder(new EmptyBorder(7, 8, 7, 7));
@@ -211,7 +213,7 @@ public class GuidesView extends JPanel {
          details.add(Box.createVerticalStrut(8));
          final JButton edit = pillButton("Edit guide");
          edit.addActionListener(e -> edit(guide));
-         final String bottomLabel = isQuestStep ? "Find my next step"
+         final String bottomLabel = isQuestStep ? "Start task"
             : isGearOptimize ? "Find best gear" : "Ask";
          final JButton askBottom = pillButton(bottomLabel);
          askBottom.addActionListener(e -> doAsk.run());
@@ -221,14 +223,46 @@ public class GuidesView extends JPanel {
          buttons.add(edit);
          buttons.add(askBottom);
          details.add(buttons);
+
+         if (!isTool && directTaskTarget != null) {
+            details.add(Box.createVerticalStrut(4));
+            final JButton startBtn = pillButton("▶ Start task: " + directTaskTarget);
+            startBtn.setToolTipText("Step-by-step guided view with wiki checklist and in-game navigation");
+            startBtn.addActionListener(e -> onStartTask.accept(directTaskTarget, guidePicks));
+            final JPanel startRow = new JPanel(new GridLayout(1, 1));
+            startRow.setOpaque(false);
+            startRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+            startRow.add(startBtn);
+            details.add(startRow);
+         }
          card.add(details, BorderLayout.CENTER);
       }
       return card;
    }
 
+   private static String directTaskTarget(final Guide guide) {
+      final Map<String, String> f = guide.getFields();
+      if (f.containsKey("minigame")) {
+         return f.get("minigame");
+      }
+      if (f.containsKey("boss")) {
+         return f.get("boss");
+      }
+      if (f.containsKey("monster")) {
+         return "Kill " + f.getOrDefault("count", "") + " " + f.get("monster");
+      }
+      if (guide.getId().equals("skill-train") && f.containsKey("skill")) {
+         return "Train " + f.get("skill") + " to " + f.getOrDefault("target", "");
+      }
+      if (guide.getId().equals("money-skill") && f.containsKey("skill")) {
+         return "Make money with " + f.get("skill");
+      }
+      return null;
+   }
+
    private void runGuide(final Guide guide, final Map<String, String> guidePicks) {
       if (guide.getId().startsWith(GuideCatalog.QUEST_STEP_PREFIX)) {
-         onQuestStep.accept(guide.getFields().get("quest"), guidePicks);
+         onStartTask.accept(guide.getFields().get("quest"), guidePicks);
       } else if (guide.getId().startsWith(GuideCatalog.GEAR_OPTIMIZER_PREFIX)) {
          final String target = guide.getFields().containsKey("monster")
             ? guide.getFields().get("monster")

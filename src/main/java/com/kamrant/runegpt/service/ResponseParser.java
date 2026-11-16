@@ -4,11 +4,23 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.kamrant.runegpt.model.TaskSuggestion;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /** Lenient helpers for reading the JSON the LLM returns (tolerates code fences and stray text). */
 public final class ResponseParser {
+
+   // Matches numbered or bulleted bold recommendations in Markdown: "1. **Barrows** — ~500k gp/hr"
+   private static final Pattern BOLD_LIST_ITEM = Pattern.compile(
+      "(?m)^\\s*(?:\\d+[.)]|[-*•])\\s*\\*\\*([^*\\n]{3,45})\\*\\*(?:\\s*[:\\-–—]\\s*([^\\n]{0,70}))?");
+   private static final Pattern NUMBERED_HEADING = Pattern.compile(
+      "(?m)^\\s*#{2,4}\\s*(?:\\d+[.)]\\s*)?([^#\\n]{3,45})$");
 
    private ResponseParser() {
    }
@@ -94,5 +106,76 @@ public final class ResponseParser {
    public static JsonObject object(final JsonObject o, final String key) {
       final JsonElement e = o == null ? null : o.get(key);
       return e != null && e.isJsonObject() ? e.getAsJsonObject() : null;
+   }
+
+   /**
+    * Reads task suggestions from the JSON {@code "suggestions"} array, falling back to extracting bold
+    * numbered/bulleted items from {@code answerMarkdown} when no single {@code guide} was returned.
+    */
+   public static List<TaskSuggestion> suggestions(final JsonObject json, final String answerMarkdown,
+      final boolean hasGuide, final int max) {
+      final List<TaskSuggestion> out = new ArrayList<>();
+      final Set<String> seen = new LinkedHashSet<>();
+
+      for (final JsonElement el : array(json, "suggestions")) {
+         if (out.size() >= max) {
+            break;
+         }
+         if (el.isJsonObject()) {
+            final JsonObject o = el.getAsJsonObject();
+            final String title = cleanTitle(str(o, "title"));
+            if (!title.isEmpty() && seen.add(title.toLowerCase(Locale.ROOT))) {
+               out.add(new TaskSuggestion(title, str(o, "category"), str(o, "summary")));
+            }
+         } else if (el.isJsonPrimitive()) {
+            final String title = cleanTitle(el.getAsString());
+            if (!title.isEmpty() && seen.add(title.toLowerCase(Locale.ROOT))) {
+               out.add(new TaskSuggestion(title, "", ""));
+            }
+         }
+      }
+
+      if (!out.isEmpty() || hasGuide || answerMarkdown == null || answerMarkdown.isEmpty()) {
+         return out;
+      }
+
+      final Matcher m = BOLD_LIST_ITEM.matcher(answerMarkdown);
+      while (m.find() && out.size() < max) {
+         final String title = cleanTitle(m.group(1));
+         final String summary = m.group(2) == null ? "" : m.group(2).replaceAll("\\*+", "").trim();
+         if (isPlausibleTaskTitle(title) && seen.add(title.toLowerCase(Locale.ROOT))) {
+            out.add(new TaskSuggestion(title, "", summary));
+         }
+      }
+      if (out.isEmpty()) {
+         final Matcher hm = NUMBERED_HEADING.matcher(answerMarkdown);
+         while (hm.find() && out.size() < max) {
+            final String title = cleanTitle(hm.group(1));
+            if (isPlausibleTaskTitle(title) && seen.add(title.toLowerCase(Locale.ROOT))) {
+               out.add(new TaskSuggestion(title, "", ""));
+            }
+         }
+      }
+      return out;
+   }
+
+   private static String cleanTitle(final String raw) {
+      if (raw == null) {
+         return "";
+      }
+      return raw.replaceAll("\\*+", "")
+         .replaceAll("^\\d+[.)]\\s*", "")
+         .replaceAll("\\s*[:–—-]\\s*$", "")
+         .trim();
+   }
+
+   private static boolean isPlausibleTaskTitle(final String title) {
+      if (title.length() < 3 || title.length() > 42) {
+         return false;
+      }
+      final String lower = title.toLowerCase(Locale.ROOT);
+      return !(lower.equals("requirements") || lower.equals("recommended") || lower.equals("summary")
+         || lower.equals("overview") || lower.equals("pros") || lower.equals("cons") || lower.equals("notes")
+         || lower.equals("tips") || lower.equals("gear") || lower.equals("inventory") || lower.equals("levels"));
    }
 }

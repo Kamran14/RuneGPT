@@ -104,6 +104,7 @@ public class GuideTracker {
          final GuidePlan plan = active;
          if (plan != null) {
             active = plan.withCurrentStep(stepIndex);
+            highlighter.setStep(active.getCurrentStep() + 1, active.currentStepText());
             notifyListeners();
          }
       });
@@ -158,7 +159,9 @@ public class GuideTracker {
       highlighter.setTarget(
          npc == null ? null : npc.getName(),
          mapTarget == null ? null : mapTarget.getName(),
-         mapTarget == null ? null : mapTarget.getPoint());
+         mapTarget == null ? null : mapTarget.getPoint(),
+         plan.getCurrentStep() + 1,
+         plan.currentStepText());
 
       if (mapTarget != null) {
          final WorldPoint point = mapTarget.getPoint();

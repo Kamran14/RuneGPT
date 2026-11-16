@@ -36,12 +36,18 @@ public final class Prompts {
    /** The JSON contract for {@link #SYSTEM}, appended to it. */
    public static final String RESPONSE_FORMAT =
       "Always reply with exactly one JSON object and nothing else (no code fences):\n"
-         + "{\"answer\": \"...\", \"guide\": null}\n"
+         + "{\"answer\": \"...\", \"suggestions\": [], \"guide\": null}\n"
          + "- \"answer\": concise Markdown for a panel about 200px wide: short ### headings, bullet lists, "
          + "**bold** for key names. At most about 120 words. No tables wider than 2 columns. Don't repeat the "
          + "guide's item lists here.\n"
-         + "- \"guide\": include ONLY when the player wants to do something (a quest, boss, monster, skill "
-         + "method, money maker, minigame or trip setup); otherwise null. Shape:\n"
+         + "- \"suggestions\": whenever you recommend or compare activities the player could do (quests, money "
+         + "making methods, minigames, bosses, skilling methods, combat training spots), list each recommended "
+         + "option here (at most 5) so the player gets a \"Start task\" button for each one. Shape of each entry:\n"
+         + "{\"title\": \"short actionable name, e.g. Guardians of the Rift, Barrows, Herb runs (Ranarr), "
+         + "Seers' Village Rooftop Course\", \"category\": \"quest|minigame|money|skill|boss|monster\", "
+         + "\"summary\": \"under 10 words: GP/hr, XP/hr, or key unlock\"}\n"
+         + "- \"guide\": include ONLY when the player wants to do ONE specific activity right now (a quest, boss, "
+         + "monster, skill method, money maker, minigame or trip setup); otherwise null. Shape:\n"
          + "{\"title\": \"short name, e.g. Blue dragons in Taverley Dungeon\", "
          + "\"steps\": [\"imperative steps, at most 6, each under 15 words\"], "
          + "\"current_step\": 1, "
@@ -91,6 +97,33 @@ public final class Prompts {
 
    public static final String QUEST_WIKI_HEADER = "\nOSRS WIKI TEXT (the only source you may use):\n";
    public static final String QUEST_COMPLETED_STEP = "The player says they just completed this step: %s\n";
+
+   // ---------------------------------------------------------------------------------------------
+   // Task / activity step assistant (minigames, money making, skilling, bosses, monsters)
+   // ---------------------------------------------------------------------------------------------
+
+   public static final String TASK_SYSTEM =
+      "You are a tactical Old School RuneScape task assistant. Guide the player step by step through ONE "
+         + "activity (a minigame, money maker, skilling method, boss or monster task) using the OSRS Wiki data, "
+         + "live Grand Exchange prices and the player's current stats, items and location. Never invent items, "
+         + "NPCs or locations. No filler or pleasantries. Respond with a single JSON object and nothing else "
+         + "(no markdown, no code fences).";
+
+   public static final String TASK_STEP_INSTRUCTIONS =
+      "Work out where the player is in setting up or doing this task from their stats, worn gear, inventory, "
+         + "bank and location, then guide them step by step. If they already have the gear/items ready or just "
+         + "finished a step, put those in completed_steps and advance next_step to what they should do right now. "
+         + "Reply with JSON exactly like:\n"
+         + "{\"progress\": \"readiness and current stage in one sentence (check levels, gear and location)\", "
+         + "\"confidence\": \"high|medium|low\", "
+         + "\"completed_steps\": [\"steps the player has already completed, e.g. gearing up or travelling\"], "
+         + "\"next_step\": \"what to do right now in 1-2 imperative sentences\", "
+         + "\"location\": \"exact place name in OSRS where this step happens\", "
+         + "\"npc\": \"exact NPC or monster name to interact with or fight, or empty\", "
+         + "\"items\": [{\"name\": \"exact item name\", \"quantity\": 1, \"equip\": false}], "
+         + "\"then\": [\"up to 4 following steps to complete the run or loop, short\"], "
+         + "\"tip\": \"one short tactical tip (GP/hr, XP/hr, or key mechanic)\"}\n"
+         + "Set \"equip\": true for wearable gear and false for carried supplies.";
 
    /** Header for wiki facts attached to a chat request about specific quests. */
    public static final String WIKI_FACTS_HEADER = "\nVERIFIED OSRS WIKI DATA (from the official quest list and the "

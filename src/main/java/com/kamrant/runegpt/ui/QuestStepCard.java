@@ -20,6 +20,9 @@ public final class QuestStepCard {
    }
 
    public static String header(final QuestStep step) {
+      if (!step.getHeaderLabel().isEmpty()) {
+         return step.getHeaderLabel();
+      }
       switch (step.getKind()) {
          case STEP:
             return "Quest helper · OSRS Wiki";
@@ -95,7 +98,11 @@ public final class QuestStepCard {
       add(p, Box.createVerticalStrut(4));
       final JButton done = GuidesView.pillButton("Done, next step");
       done.addActionListener(e -> actions.nextStep(step.getQuest(), step.getNextStep()));
-      add(p, buttons(done, wikiButton(step.getWikiUrl(), "Wiki guide")));
+      if (step.getWikiUrl() != null && !step.getWikiUrl().isEmpty()) {
+         add(p, buttons(done, wikiButton(step.getWikiUrl(), "Wiki guide")));
+      } else {
+         add(p, buttons(done));
+      }
    }
 
    private static JButton wikiButton(final String url, final String text) {

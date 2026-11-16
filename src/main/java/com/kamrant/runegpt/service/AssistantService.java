@@ -6,16 +6,21 @@ import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.model.AssistantResponse;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.LlmReply;
+import com.kamrant.runegpt.model.TaskSuggestion;
 import com.kamrant.runegpt.quest.QuestAssistant;
+import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
 /**
  * One chat turn end to end: ask the LLM (with failover), parse its JSON reply into instructions plus an
- * optional guide, verify the guide against the wiki, and record the readable answer in the history.
+ * optional guide and actionable task suggestions, verify the guide against the wiki, and record the readable
+ * answer in the history.
  */
 @Singleton
 public class AssistantService {
+
+   private static final int MAX_SUGGESTIONS = 5;
 
    private final GPTClient gpt;
    private final GuideVerifier verifier;
@@ -47,7 +52,7 @@ public class AssistantService {
 
       String answer = ResponseParser.str(json, "answer");
       GuidePlan guide = null;
-      if (json == null || (answer.isEmpty() && !json.has("guide"))) {
+      if (json == null || (answer.isEmpty() && !json.has("guide") && !json.has("suggestions"))) {
          // Not our JSON shape: show it as plain Markdown rather than failing.
          answer = ResponseParser.stripFences(reply.getText());
       } else {
@@ -56,7 +61,9 @@ public class AssistantService {
       if (answer.isEmpty() && guide != null) {
          answer = "### " + guide.getTitle();
       }
+      final List<TaskSuggestion> suggestions = ResponseParser.suggestions(
+         json, answer, guide != null, MAX_SUGGESTIONS);
       gpt.remember(prompt, answer);
-      return AssistantResponse.of(answer, guide);
+      return AssistantResponse.of(answer, guide, suggestions);
    }
 }
