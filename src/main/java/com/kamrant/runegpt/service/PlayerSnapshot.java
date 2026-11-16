@@ -3,7 +3,9 @@ package com.kamrant.runegpt.service;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.ItemSource;
 import com.kamrant.runegpt.model.OwnedGear;
+import com.kamrant.runegpt.model.TargetSource;
 import com.kamrant.runegpt.model.TaskSuggestion;
+import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.quest.QuestProgress;
@@ -11,6 +13,7 @@ import com.kamrant.runegpt.quest.QuestResolver;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,15 +23,21 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.runelite.api.Client;
+import net.runelite.api.GameObject;
 import net.runelite.api.GameState;
 import net.runelite.api.Item;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.ItemContainer;
 import net.runelite.api.NPC;
+import net.runelite.api.ObjectComposition;
 import net.runelite.api.Player;
 import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
+import net.runelite.api.Scene;
 import net.runelite.api.Skill;
+import net.runelite.api.Tile;
+import net.runelite.api.TileObject;
+import net.runelite.api.WorldView;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.ItemID;
@@ -43,6 +52,7 @@ public final class PlayerSnapshot {
 
    private static final int MAX_NEARBY_NPCS = 15;
    private static final int MAX_BANK_CHARS = 1500;
+   private static final int SCENE_SCAN_RADIUS = 48;
    private static final Skill[] COMBAT_SKILLS = {
       Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED, Skill.MAGIC, Skill.HITPOINTS
    };
@@ -72,6 +82,8 @@ public final class PlayerSnapshot {
    private int questsCompleted;
    private WorldPoint location;
    private final List<String> nearbyNpcs = new ArrayList<>();
+   // Lowercase entity name -> closest loaded NPC or TileObject in the current scene.
+   private final Map<String, WorldTarget> sceneEntities = new LinkedHashMap<>();
    // Item name -> quantity. Bank is empty (and bankKnown false) until the bank has been opened.
    private final Map<String, Integer> inventory = new LinkedHashMap<>();
    private final Map<String, Integer> equipment = new LinkedHashMap<>();
@@ -121,7 +133,7 @@ public final class PlayerSnapshot {
       }
       QuestProgress.captureFromClient(client, s.questStates, s.questRatios, s.questStageTexts, s.questSubTasks);
 
-      // Nearby NPC names, closest first: strong hints about where the player is.
+      // Nearby NPCs and scene objects, closest first: strong hints about where the player is and exact tiles for "nearest X".
       if (local != null) {
          final List<NPC> npcs = new ArrayList<>();
          client.getTopLevelWorldView().npcs().forEach(npcs::add);
@@ -129,11 +141,17 @@ public final class PlayerSnapshot {
          npcs.sort((x, y) -> Integer.compare(x.getWorldLocation().distanceTo(here), y.getWorldLocation().distanceTo(here)));
          final Set<String> names = new LinkedHashSet<>();
          for (final NPC npc : npcs) {
-            if (npc.getName() != null && !npc.getName().equals("null") && names.size() < MAX_NEARBY_NPCS) {
-               names.add(npc.getName());
+            final String n = npc.getName();
+            if (n != null && !n.equals("null") && !n.isEmpty()) {
+               if (names.size() < MAX_NEARBY_NPCS) {
+                  names.add(n);
+               }
+               s.sceneEntities.putIfAbsent(n.toLowerCase(Locale.ROOT),
+                  new WorldTarget(n, npc.getWorldLocation(), TargetSource.WIKI));
             }
          }
          s.nearbyNpcs.addAll(names);
+         captureSceneObjects(client, here, s.sceneEntities);
       }
 
       final Map<Integer, OwnedGear> gearById = new LinkedHashMap<>();
@@ -171,6 +189,82 @@ public final class PlayerSnapshot {
          if (item.getId() > 0 && item.getQuantity() > 0) {
             out.merge(itemManager.getItemComposition(item.getId()).getName(), item.getQuantity(), Integer::sum);
          }
+      }
+   }
+
+   private static void captureSceneObjects(final Client client, final WorldPoint here,
+      final Map<String, WorldTarget> out) {
+      if (here == null) {
+         return;
+      }
+      final WorldView wv = client.getTopLevelWorldView();
+      final Scene scene = wv == null ? null : wv.getScene();
+      if (scene == null || scene.getTiles() == null) {
+         return;
+      }
+      final int plane = wv.getPlane();
+      final Tile[][][] tiles = scene.getTiles();
+      if (plane < 0 || plane >= tiles.length || tiles[plane] == null) {
+         return;
+      }
+      final Map<Integer, String> idToName = new HashMap<>();
+      final Map<String, Integer> bestDist = new HashMap<>();
+      final Tile[][] planeTiles = tiles[plane];
+      for (int x = 0; x < planeTiles.length; x++) {
+         for (int y = 0; y < planeTiles[x].length; y++) {
+            final Tile tile = planeTiles[x][y];
+            if (tile == null) {
+               continue;
+            }
+            final WorldPoint wp = tile.getWorldLocation();
+            if (wp == null) {
+               continue;
+            }
+            final int dist = wp.distanceTo2D(here);
+            if (dist > SCENE_SCAN_RADIUS) {
+               continue;
+            }
+            if (tile.getGameObjects() != null) {
+               for (final GameObject go : tile.getGameObjects()) {
+                  if (go != null) {
+                     recordObject(client, go.getId(), wp, dist, idToName, bestDist, out);
+                  }
+               }
+            }
+            for (final TileObject to : new TileObject[] { tile.getWallObject(), tile.getGroundObject(), tile.getDecorativeObject() }) {
+               if (to != null) {
+                  recordObject(client, to.getId(), wp, dist, idToName, bestDist, out);
+               }
+            }
+         }
+      }
+   }
+
+   private static void recordObject(final Client client, final int id, final WorldPoint wp, final int dist,
+      final Map<Integer, String> idToName, final Map<String, Integer> bestDist, final Map<String, WorldTarget> out) {
+      final String name = idToName.computeIfAbsent(id, k -> {
+         try {
+            ObjectComposition comp = client.getObjectDefinition(k);
+            if (comp != null && comp.getImpostorIds() != null) {
+               final ObjectComposition imp = comp.getImpostor();
+               if (imp != null) {
+                  comp = imp;
+               }
+            }
+            final String n = comp == null ? null : comp.getName();
+            return n == null || n.equals("null") || n.isEmpty() ? "" : n;
+         } catch (final RuntimeException e) {
+            return "";
+         }
+      });
+      if (name.length() < 3) {
+         return;
+      }
+      final String key = name.toLowerCase(Locale.ROOT);
+      final Integer prev = bestDist.get(key);
+      if (prev == null || dist < prev) {
+         bestDist.put(key, dist);
+         out.put(key, new WorldTarget(name, wp, TargetSource.WIKI));
       }
    }
 
@@ -293,6 +387,54 @@ public final class PlayerSnapshot {
 
    public WorldPoint getLocation() {
       return location;
+   }
+
+   /** Sets the player's location and optional nearby scene entities (for unit testing). */
+   public PlayerSnapshot withLocation(final WorldPoint location) {
+      this.location = location;
+      return this;
+   }
+
+   /** Adds a simulated nearby scene entity (for unit testing). */
+   public PlayerSnapshot withSceneEntity(final String name, final WorldPoint point) {
+      if (name != null && point != null) {
+         sceneEntities.put(name.toLowerCase(Locale.ROOT), new WorldTarget(name, point, TargetSource.WIKI));
+      }
+      return this;
+   }
+
+   /**
+    * Returns the closest loaded NPC or interactable object in the current scene matching {@code query},
+    * or null if none is loaded nearby.
+    */
+   public WorldTarget nearestSceneEntity(final String query) {
+      if (query == null || query.isEmpty() || sceneEntities.isEmpty()) {
+         return null;
+      }
+      final String q = query.trim().toLowerCase(Locale.ROOT);
+      final String singular = q.endsWith("s") && q.length() > 3 ? q.substring(0, q.length() - 1) : q;
+      final WorldTarget exact = sceneEntities.get(q);
+      if (exact != null) {
+         return exact;
+      }
+      final WorldTarget exactSing = sceneEntities.get(singular);
+      if (exactSing != null) {
+         return exactSing;
+      }
+      WorldTarget best = null;
+      int bestDist = Integer.MAX_VALUE;
+      for (final Map.Entry<String, WorldTarget> e : sceneEntities.entrySet()) {
+         final String k = e.getKey();
+         if (k.contains(singular) || singular.contains(k)) {
+            final WorldPoint p = e.getValue().getPoint();
+            final int d = location == null || p == null ? 0 : p.distanceTo2D(location);
+            if (best == null || d < bestDist) {
+               best = e.getValue();
+               bestDist = d;
+            }
+         }
+      }
+      return best;
    }
 
    public List<String> getNearbyNpcs() {

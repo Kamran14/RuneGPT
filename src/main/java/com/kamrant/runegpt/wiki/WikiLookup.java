@@ -1,9 +1,12 @@
 package com.kamrant.runegpt.wiki;
 
 import com.kamrant.runegpt.model.MonsterStats;
+import com.kamrant.runegpt.model.TargetSource;
 import com.kamrant.runegpt.model.WikiItem;
+import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.service.TextUtils;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -33,9 +36,11 @@ public class WikiLookup {
    private static final Pattern NAMED_X = Pattern.compile("(?i)\\|\\s*x\\s*=\\s*(\\d+)");
    private static final Pattern NAMED_Y = Pattern.compile("(?i)\\|\\s*y\\s*=\\s*(\\d+)");
    private static final Pattern NAMED_PLANE = Pattern.compile("(?i)\\|\\s*plane\\s*=\\s*(\\d+)");
+   private static final Pattern NAMED_LOC = Pattern.compile("(?i)\\|\\s*location\\s*=\\s*([^|}]+)");
+   private static final Pattern NAMED_NAME = Pattern.compile("(?i)\\|\\s*name\\s*=\\s*([^|}]+)");
    private static final Pattern XY_LABELLED = Pattern.compile("x:(\\d+),\\s*y:(\\d+)");
    private static final Pattern XY_BARE = Pattern.compile("\\|\\s*(\\d{3,5})\\s*,\\s*(\\d{3,5})\\s*(?=[|}])");
-   private static final Pattern LOCLINE = Pattern.compile("(?is)\\{\\{\\s*LocLine(.*?)}}");
+   private static final Pattern LOCLINE = Pattern.compile("(?is)\\{\\{\\s*(?:Object|NPC)?LocLine\\b(.*?)}}");
    private static final Pattern INT_VALUE = Pattern.compile("([+-]?\\d+)");
 
    // Wearable skill requirements in the opening paragraph: "60 Attack", "level 50 Ranged", "Attack level of 70".
@@ -50,12 +55,11 @@ public class WikiLookup {
    private final WikiClient wiki;
    private final Map<String, WikiItem> itemCache = new ConcurrentHashMap<>();
    private final Map<String, MonsterStats> monsterCache = new ConcurrentHashMap<>();
-   private final Map<String, WorldPoint> pointCache = new ConcurrentHashMap<>();
+   private final Map<String, List<WorldTarget>> targetCache = new ConcurrentHashMap<>();
    // Sentinels for "looked up, nothing found".
    private static final WikiItem NO_ITEM = new WikiItem("", false, null);
    private static final MonsterStats NO_MONSTER = new MonsterStats("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       Collections.emptySet(), null, 0);
-   private static final WorldPoint NO_POINT = new WorldPoint(-1, -1, -1);
 
    @Inject
    public WikiLookup(final WikiClient wiki) {
@@ -244,12 +248,54 @@ public class WikiLookup {
 
    /** Coordinates of an NPC or place from its wiki page, or null if the page has none. Blocking. */
    public WorldPoint coordinates(final String name) {
-      final String key = name.trim().toLowerCase(Locale.ROOT);
-      final WorldPoint cached = pointCache.get(key);
-      if (cached != null) {
-         return cached == NO_POINT ? null : cached;
+      return coordinates(name, null);
+   }
+
+   /** Closest coordinates of an NPC, object or place to {@code from}, or the first coordinate when {@code from} is null. */
+   public WorldPoint coordinates(final String name, final WorldPoint from) {
+      final WorldTarget t = nearestTarget(name, from);
+      return t == null ? null : t.getPoint();
+   }
+
+   /**
+    * Closest {@link WorldTarget} (with its regional label when the wiki lists one) to {@code from} from the
+    * entity's OSRS Wiki page, or null if the page has no coordinates. Blocking.
+    */
+   public WorldTarget nearestTarget(final String name, final WorldPoint from) {
+      final List<WorldTarget> all = allTargets(name);
+      if (all.isEmpty()) {
+         return null;
       }
-      WorldPoint result = null;
+      if (from == null) {
+         return all.get(0);
+      }
+      WorldTarget best = null;
+      int bestScore = Integer.MAX_VALUE;
+      for (final WorldTarget t : all) {
+         final WorldPoint p = t.getPoint();
+         if (p == null) {
+            continue;
+         }
+         final int dist = p.distanceTo2D(from) + (p.getPlane() != from.getPlane() ? 150 : 0);
+         if (dist < bestScore) {
+            bestScore = dist;
+            best = t;
+         }
+      }
+      return best != null ? best : all.get(0);
+   }
+
+   /** All coordinate targets listed on the wiki page for {@code name} (accepting singular/plural forms). Blocking. */
+   public List<WorldTarget> allTargets(final String name) {
+      if (name == null || name.trim().isEmpty()) {
+         return Collections.emptyList();
+      }
+      final String key = name.trim().toLowerCase(Locale.ROOT);
+      final List<WorldTarget> cached = targetCache.get(key);
+      if (cached != null) {
+         return cached;
+      }
+      List<WorldTarget> result = Collections.emptyList();
       try {
          WikiPage page = resolve(capitalize(name.trim()));
          if (page == null) {
@@ -261,13 +307,13 @@ public class WikiLookup {
             }
          }
          if (page != null) {
-            result = parseCoordinates(page.getText());
+            result = parseAllTargets(page.getTitle(), page.getText());
          }
       } catch (final IOException e) {
          log.debug("RuneGPT: wiki coordinate lookup failed for {}", name, e);
-         return null;
+         return Collections.emptyList();
       }
-      pointCache.put(key, result == null ? NO_POINT : result);
+      targetCache.put(key, result);
       return result;
    }
 
@@ -276,40 +322,57 @@ public class WikiLookup {
     * else the first {{LocLine}} spawn point.
     */
    static WorldPoint parseCoordinates(final String text) {
-      final Matcher map = MAP_TEMPLATE.matcher(text);
-      while (map.find()) {
-         final String body = "|" + map.group(1);
-         final WorldPoint p = pointIn(body);
-         if (p != null) {
-            return p;
-         }
-      }
-      final Matcher loc = LOCLINE.matcher(text);
-      while (loc.find()) {
-         final WorldPoint p = pointIn(loc.group(1));
-         if (p != null) {
-            return p;
-         }
-      }
-      return null;
+      final List<WorldTarget> all = parseAllTargets("", text);
+      return all.isEmpty() ? null : all.get(0).getPoint();
    }
 
-   private static WorldPoint pointIn(final String body) {
+   /**
+    * Extracts all coordinates and regional labels from {{Map}} and {{(Object|NPC)?LocLine}} templates on a wiki page.
+    */
+   public static List<WorldTarget> parseAllTargets(final String baseName, final String text) {
+      if (text == null || text.isEmpty()) {
+         return Collections.emptyList();
+      }
+      final List<WorldTarget> out = new ArrayList<>();
+      final Matcher loc = LOCLINE.matcher(text);
+      while (loc.find()) {
+         addTemplateTargets(baseName, "|" + loc.group(1), out);
+      }
+      final Matcher map = MAP_TEMPLATE.matcher(text);
+      while (map.find()) {
+         addTemplateTargets(baseName, "|" + map.group(1), out);
+      }
+      return out;
+   }
+
+   private static void addTemplateTargets(final String baseName, final String body, final List<WorldTarget> out) {
       final int plane = intOr(NAMED_PLANE.matcher(body), 0);
+      String label = baseName == null ? "" : baseName;
+      final Matcher locName = NAMED_LOC.matcher(body);
+      final Matcher fallbackName = NAMED_NAME.matcher(body);
+      final String rawSub = locName.find() ? locName.group(1) : fallbackName.find() ? fallbackName.group(1) : null;
+      if (rawSub != null) {
+         final String sub = Wikitext.toPlain(rawSub).trim();
+         if (!sub.isEmpty() && !sub.equalsIgnoreCase(label)) {
+            label = label.isEmpty() ? sub : label + " (" + sub + ")";
+         }
+      }
       final Matcher nx = NAMED_X.matcher(body);
       final Matcher ny = NAMED_Y.matcher(body);
       if (nx.find() && ny.find()) {
-         return new WorldPoint(Integer.parseInt(nx.group(1)), Integer.parseInt(ny.group(1)), plane);
+         out.add(new WorldTarget(label, new WorldPoint(
+            Integer.parseInt(nx.group(1)), Integer.parseInt(ny.group(1)), plane), TargetSource.WIKI));
       }
       final Matcher lab = XY_LABELLED.matcher(body);
-      if (lab.find()) {
-         return new WorldPoint(Integer.parseInt(lab.group(1)), Integer.parseInt(lab.group(2)), plane);
+      while (lab.find()) {
+         out.add(new WorldTarget(label, new WorldPoint(
+            Integer.parseInt(lab.group(1)), Integer.parseInt(lab.group(2)), plane), TargetSource.WIKI));
       }
       final Matcher bare = XY_BARE.matcher(body);
-      if (bare.find()) {
-         return new WorldPoint(Integer.parseInt(bare.group(1)), Integer.parseInt(bare.group(2)), plane);
+      while (bare.find()) {
+         out.add(new WorldTarget(label, new WorldPoint(
+            Integer.parseInt(bare.group(1)), Integer.parseInt(bare.group(2)), plane), TargetSource.WIKI));
       }
-      return null;
    }
 
    private static int intOr(final Matcher m, final int fallback) {

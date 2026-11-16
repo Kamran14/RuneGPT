@@ -86,10 +86,15 @@ public class GuideVerifier {
          }
          itemLookups.add(CompletableFuture.supplyAsync(() -> checkItem(item), pool));
       }
+      final String activeStep = !steps.isEmpty() && currentStep >= 0 && currentStep < steps.size()
+         ? steps.get(currentStep)
+         : "";
       final JsonObject loc = ResponseParser.object(guide, "location");
-      final CompletableFuture<WorldTarget> locationLookup = CompletableFuture.supplyAsync(() -> checkLocation(loc), pool);
+      final CompletableFuture<WorldTarget> locationLookup = CompletableFuture.supplyAsync(
+         () -> checkLocation(loc, snapshot, activeStep), pool);
       final String npcName = ResponseParser.str(guide, "npc");
-      final CompletableFuture<WorldTarget> npcLookup = CompletableFuture.supplyAsync(() -> checkNpc(npcName), pool);
+      final CompletableFuture<WorldTarget> npcLookup = CompletableFuture.supplyAsync(
+         () -> checkNpc(npcName, snapshot), pool);
 
       int removed = 0;
       final List<GuideItem> items = new ArrayList<>();
@@ -154,18 +159,22 @@ public class GuideVerifier {
       return new GuideItem(info.getName(), item.getQuantity(), GuideItemKind.CARRY, null, ItemStatus.UNKNOWN);
    }
 
-   /** Wiki coordinates if the place has a page with a map; else the AI's estimate; else name only. */
-   private WorldTarget checkLocation(final JsonObject loc) {
+   /** Closest resolved coordinates from scene, world facility table, or wiki; else the AI's estimate; else name only. */
+   private WorldTarget checkLocation(final JsonObject loc, final PlayerSnapshot snapshot, final String activeStep) {
+      final WorldTarget stepTarget = NearestTargetResolver.resolveFromText(activeStep, snapshot, wiki);
       if (loc == null) {
-         return null;
+         return stepTarget;
       }
       final String name = ResponseParser.str(loc, "name");
       if (name.isEmpty()) {
-         return null;
+         return stepTarget;
       }
-      final WorldPoint fromWiki = wiki.coordinates(name);
-      if (fromWiki != null) {
-         return new WorldTarget(name, fromWiki, TargetSource.WIKI);
+      final WorldTarget resolved = NearestTargetResolver.resolve(name, snapshot, wiki);
+      if (resolved != null && resolved.getPoint() != null) {
+         return resolved;
+      }
+      if (stepTarget != null && stepTarget.getPoint() != null) {
+         return stepTarget;
       }
       final int x = ResponseParser.intOr(loc, "x", 0);
       final int y = ResponseParser.intOr(loc, "y", 0);
@@ -175,13 +184,16 @@ public class GuideVerifier {
       return wiki.exists(name) ? WorldTarget.named(name) : null;
    }
 
-   /** The NPC with wiki coordinates when available; null if the wiki has no page for it. */
-   private WorldTarget checkNpc(final String name) {
-      if (name.isEmpty() || !wiki.exists(name)) {
+   /** The NPC with closest scene/wiki coordinates when available; null if the wiki has no page for it. */
+   private WorldTarget checkNpc(final String name, final PlayerSnapshot snapshot) {
+      if (name.isEmpty()) {
          return null;
       }
-      final WorldPoint p = wiki.coordinates(name);
-      return p == null ? WorldTarget.named(name) : new WorldTarget(name, p, TargetSource.WIKI);
+      final WorldTarget resolved = NearestTargetResolver.resolve(name, snapshot, wiki);
+      if (resolved != null && resolved.getPoint() != null) {
+         return new WorldTarget(name, resolved.getPoint(), TargetSource.WIKI);
+      }
+      return wiki.exists(name) ? WorldTarget.named(name) : null;
    }
 
    /** Rough bounds of the OSRS world map (surface and underground). */

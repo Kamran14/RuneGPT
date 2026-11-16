@@ -105,9 +105,12 @@ public class TaskAssistant {
       boolean npcNearby = false;
       final String npcName = ResponseParser.str(json, "npc");
       if (!npcName.isEmpty()) {
-         if (lookup.exists(npcName)) {
-            final WorldPoint p = lookup.coordinates(npcName);
-            npc = p == null ? WorldTarget.named(npcName) : new WorldTarget(npcName, p, TargetSource.WIKI);
+         final WorldTarget resolvedNpc = NearestTargetResolver.resolve(npcName, player, lookup);
+         if (resolvedNpc != null && resolvedNpc.getPoint() != null) {
+            npc = new WorldTarget(npcName, resolvedNpc.getPoint(), TargetSource.WIKI);
+            npcNearby = player.getNearbyNpcs().stream().anyMatch(n -> n.equalsIgnoreCase(npcName));
+         } else if (lookup.exists(npcName)) {
+            npc = WorldTarget.named(npcName);
             npcNearby = player.getNearbyNpcs().stream().anyMatch(n -> n.equalsIgnoreCase(npcName));
          } else {
             removed++;
@@ -117,13 +120,19 @@ public class TaskAssistant {
       WorldTarget location = null;
       final String locationName = ResponseParser.str(json, "location");
       if (!locationName.isEmpty()) {
-         final WorldPoint p = lookup.coordinates(locationName);
-         if (p != null) {
-            location = new WorldTarget(locationName, p, TargetSource.WIKI);
+         final WorldTarget resolvedLoc = NearestTargetResolver.resolve(locationName, player, lookup);
+         if (resolvedLoc != null && resolvedLoc.getPoint() != null) {
+            location = resolvedLoc;
          } else if (lookup.exists(locationName)) {
             location = WorldTarget.named(locationName);
          } else {
             removed++;
+         }
+      }
+      if (location == null || location.getPoint() == null) {
+         final WorldTarget stepTarget = NearestTargetResolver.resolveFromText(nextStep, player, lookup);
+         if (stepTarget != null && stepTarget.getPoint() != null) {
+            location = stepTarget;
          }
       }
 
@@ -227,6 +236,7 @@ public class TaskAssistant {
       }
       sb.append('\n');
       sb.append(p.toContext());
+      sb.append(NearestTargetResolver.locationFactsFor(task, p, lookup));
       sb.append(prices.priceFactsFor(task, p));
       if (completedStep != null && !completedStep.isEmpty()) {
          sb.append(String.format(Prompts.QUEST_COMPLETED_STEP, completedStep));

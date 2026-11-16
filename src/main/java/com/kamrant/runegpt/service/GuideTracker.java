@@ -60,11 +60,16 @@ public class GuideTracker {
       return active;
    }
 
-   /** The world map target of the tracked guide (location first, else NPC), or null. */
+   /** The world map target of the tracked guide (step-specific nearest facility first, then location, else NPC). */
    public WorldTarget getMapTarget() {
       final GuidePlan plan = active;
       if (plan == null) {
          return null;
+      }
+      final WorldPoint here = client.getLocalPlayer() == null ? null : client.getLocalPlayer().getWorldLocation();
+      final WorldTarget stepFacility = NearestTargetResolver.resolveFacilityInStep(plan.currentStepText(), here);
+      if (stepFacility != null && stepFacility.getPoint() != null) {
+         return stepFacility;
       }
       final WorldTarget location = plan.getLocation();
       final WorldTarget npc = plan.getNpc();
@@ -103,8 +108,9 @@ public class GuideTracker {
       clientThread.invokeLater(() -> {
          final GuidePlan plan = active;
          if (plan != null) {
+            clearNavigation();
             active = plan.withCurrentStep(stepIndex);
-            highlighter.setStep(active.getCurrentStep() + 1, active.currentStepText());
+            setNavigation(active);
             notifyListeners();
          }
       });
@@ -151,10 +157,7 @@ public class GuideTracker {
 
    private void setNavigation(final GuidePlan plan) {
       final WorldTarget npc = plan.getNpc();
-      final WorldTarget location = plan.getLocation();
-      // Prefer the location's coordinates for the map; fall back to the NPC's.
-      final WorldTarget mapTarget = location != null && location.getPoint() != null ? location
-         : npc != null && npc.getPoint() != null ? npc : null;
+      final WorldTarget mapTarget = getMapTarget();
 
       highlighter.setTarget(
          npc == null ? null : npc.getName(),

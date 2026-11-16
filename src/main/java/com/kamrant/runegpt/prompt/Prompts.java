@@ -52,7 +52,8 @@ public final class Prompts {
          + "Seers' Village Rooftop Course\", \"category\": \"quest|minigame|money|skill|boss|monster\", "
          + "\"summary\": \"under 10 words: GP/hr, XP/hr, or key unlock\"}\n"
          + "- \"guide\": include ONLY when the player wants to do ONE specific activity right now (a quest, boss, "
-         + "monster, skill method, money maker, minigame or trip setup); otherwise null. Shape:\n"
+         + "monster, skill method, money maker, minigame or trip setup) OR when they ask where something is / to "
+         + "go to a nearest location or NPC; otherwise null. Shape:\n"
          + "{\"title\": \"short name, e.g. Blue dragons in Taverley Dungeon\", "
          + "\"steps\": [\"imperative steps, at most 6, each under 15 words\"], "
          + "\"current_step\": 1, "
@@ -137,6 +138,10 @@ public final class Prompts {
    /** Header for live Grand Exchange prices attached to a chat or guide request. */
    public static final String PRICE_FACTS_HEADER = "\nVERIFIED LIVE GRAND EXCHANGE PRICES (use only these numbers "
       + "for item prices; never invent GP prices):\n";
+
+   /** Header for the nearest resolved target coordinates relative to the player's position. */
+   public static final String NEAREST_LOCATION_HEADER = "\nVERIFIED NEAREST LOCATION FROM PLAYER (authoritative "
+      + "coordinates from the player's current position):\n";
 
    /** Header for the wiki requirement data appended to a "Requirements for quest" prompt. */
    public static final String REQUIREMENTS_WIKI_HEADER = "\n\nOfficial OSRS Wiki data for %s (use only this for requirements):\n";

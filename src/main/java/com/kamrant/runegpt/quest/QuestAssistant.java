@@ -15,6 +15,7 @@ import com.kamrant.runegpt.model.TargetSource;
 import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.service.ItemStatusResolver;
+import com.kamrant.runegpt.service.NearestTargetResolver;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import com.kamrant.runegpt.service.PriceService;
 import com.kamrant.runegpt.service.ResponseParser;
@@ -125,8 +126,10 @@ public class QuestAssistant {
       final String npcName = ResponseParser.str(json, "npc");
       if (!npcName.isEmpty()) {
          if (mentioned(corpus, npcName)) {
-            final WorldPoint p = lookup.coordinates(npcName);
-            npc = p == null ? WorldTarget.named(npcName) : new WorldTarget(npcName, p, TargetSource.WIKI);
+            final WorldTarget resolvedNpc = NearestTargetResolver.resolve(npcName, player, lookup);
+            npc = resolvedNpc != null && resolvedNpc.getPoint() != null
+               ? new WorldTarget(npcName, resolvedNpc.getPoint(), TargetSource.WIKI)
+               : WorldTarget.named(npcName);
             npcNearby = player.getNearbyNpcs().stream().anyMatch(n -> n.equalsIgnoreCase(npcName));
          } else {
             removed++;
@@ -136,8 +139,16 @@ public class QuestAssistant {
       WorldTarget location = null;
       final String locationName = ResponseParser.str(json, "location");
       if (!locationName.isEmpty()) {
-         final WorldPoint p = lookup.coordinates(locationName);
-         location = p == null ? WorldTarget.named(locationName) : new WorldTarget(locationName, p, TargetSource.WIKI);
+         final WorldTarget resolvedLoc = NearestTargetResolver.resolve(locationName, player, lookup);
+         location = resolvedLoc != null && resolvedLoc.getPoint() != null
+            ? resolvedLoc
+            : WorldTarget.named(locationName);
+      }
+      if (location == null || location.getPoint() == null) {
+         final WorldTarget stepTarget = NearestTargetResolver.resolveFromText(nextStep, player, lookup);
+         if (stepTarget != null && stepTarget.getPoint() != null) {
+            location = stepTarget;
+         }
       }
 
       final List<GuideItem> items = new ArrayList<>();

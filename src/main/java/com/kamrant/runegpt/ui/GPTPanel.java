@@ -14,6 +14,7 @@ import com.kamrant.runegpt.service.AssistantService;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GearOptimizer;
 import com.kamrant.runegpt.service.GuideTracker;
+import com.kamrant.runegpt.service.NearestTargetResolver;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import com.kamrant.runegpt.service.TaskAssistant;
 import java.awt.BorderLayout;
@@ -206,6 +207,10 @@ public class GPTPanel extends PluginPanel {
       chatView.showThinking(UiTheme.LBL_THINKING);
       withSnapshot(snapshot -> {
          final AssistantResponse response = assistant.ask(prompt, snapshot);
+         if (response.isSuccess() && response.getGuide() != null
+            && NearestTargetResolver.isNavigationRequest(prompt)) {
+            tracker.start(response.getGuide());
+         }
          SwingUtilities.invokeLater(() -> {
             showResponse(response);
             chatView.focusInput();
@@ -299,8 +304,7 @@ public class GPTPanel extends PluginPanel {
       withSnapshot(snapshot -> {
          final QuestStep step = taskAssistant.nextStep(task, category,
             picks == null ? Collections.emptyMap() : picks, snapshot, completedStep);
-         if (completedStep != null && step.getKind() == QuestStepKind.STEP
-            && tracker.getActive() != null && step.getQuest().equalsIgnoreCase(tracker.getActive().getTitle())) {
+         if (step.getKind() == QuestStepKind.STEP) {
             tracker.start(step.toGuidePlan());
          }
          SwingUtilities.invokeLater(() ->

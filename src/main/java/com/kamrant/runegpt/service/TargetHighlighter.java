@@ -131,7 +131,8 @@ public class TargetHighlighter {
       }
       final Player local = client.getLocalPlayer();
       final WorldPoint here = local == null ? null : local.getWorldLocation();
-      final String stepLower = step == null ? "" : step.toLowerCase(Locale.ROOT);
+      final String tgt = targetName == null ? "" : targetName.toLowerCase(Locale.ROOT);
+      final String stepLower = ((step == null ? "" : step.toLowerCase(Locale.ROOT)) + " " + tgt).trim();
 
       // 1. Check loaded NPCs (matching either the guide's npcName or an NPC named in the current step).
       NPC bestNpc = null;
@@ -287,7 +288,13 @@ public class TargetHighlighter {
       if (n.length() < 3) {
          return false;
       }
-      return stepLower.contains(n) || stepLower.contains(n + "s");
+      if (stepLower.contains(n) || stepLower.contains(n + "s")) {
+         return true;
+      }
+      if ((n.equals("bank booth") || n.equals("bank chest")) && stepLower.contains("bank")) {
+         return true;
+      }
+      return n.equals("cooking range") && stepLower.contains("range");
    }
 
    private void clearArrow() {
