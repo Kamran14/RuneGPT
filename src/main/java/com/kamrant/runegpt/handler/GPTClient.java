@@ -4,7 +4,9 @@ import com.google.gson.Gson;
 import com.google.inject.Singleton;
 import com.kamrant.runegpt.RuneGPTConfig;
 import com.kamrant.runegpt.builders.GPTRequest;
+import com.kamrant.runegpt.config.LLMProvider;
 import com.kamrant.runegpt.parser.GPTResponseParser;
+import java.time.Duration;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -19,6 +21,8 @@ public class GPTClient {
    private OkHttpClient httpClient;
    @Inject
    private Gson gson;
+
+   private static final Duration CLAUDE_READ_TIMEOUT = Duration.ofSeconds(180);
 
    private final RuneGPTConfig config;
    private static GPTClient instance;
@@ -36,12 +40,30 @@ public class GPTClient {
       return instance;
    }
 
-   public String queryGPT(final String prompt) {
-      // TODO: model selection, instruction and context, user info
-      final Request request = GPTRequest.buildRequest(config.apiKey(), prompt, config.temperature(), gson);
-      try (final Response response = httpClient.newCall(request).execute()) {
+   public String getProviderName() {
+      return config.provider().getDisplayName();
+   }
 
-         return GPTResponseParser.parseResponse(gson, response);
+   public String queryGPT(final String prompt) {
+      // TODO: instruction and context, user info
+      final LLMProvider provider = config.provider();
+      final String apiKey = provider == LLMProvider.CLAUDE ? config.claudeApiKey() : config.apiKey();
+      if (apiKey == null || apiKey.trim().isEmpty()) {
+         return "No " + provider.getDisplayName() + " API key set. Add one in the RuneGPT plugin settings.";
+      }
+
+      final Request request = provider == LLMProvider.CLAUDE
+         ? GPTRequest.buildClaudeRequest(apiKey.trim(), config.claudeModel(), prompt, gson)
+         : GPTRequest.buildRequest(apiKey.trim(), prompt, config.temperature(), gson);
+      // Claude may think before answering, so allow longer than RuneLite's default read timeout.
+      final OkHttpClient callClient = provider == LLMProvider.CLAUDE
+         ? httpClient.newBuilder().readTimeout(CLAUDE_READ_TIMEOUT).build()
+         : httpClient;
+      try (final Response response = callClient.newCall(request).execute()) {
+
+         return provider == LLMProvider.CLAUDE
+            ? GPTResponseParser.parseClaudeResponse(gson, response)
+            : GPTResponseParser.parseResponse(gson, response);
       } catch (final Exception e) {
          log.error("Error with LLM ", e);
          return "Error with LLM " + e.getMessage();

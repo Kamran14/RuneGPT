@@ -44,6 +44,11 @@ Why?
 - Find RuneGPT Plugin under settings.
 - Enter your Google Gemini API Key.
 
+🤖 Using Claude instead:
+- Create an API key at the [Anthropic Console](https://console.anthropic.com/settings/keys).
+- In the RuneGPT settings, set **LLM Provider** to `Claude` and paste the key into **Claude API Key**.
+- Optionally change **Claude Model** (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` are cheaper).
+
 ![API config](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/config_panel.png)
 ## ✨ Usage
 

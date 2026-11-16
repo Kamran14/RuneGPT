@@ -37,7 +37,7 @@ public class GPTPanel extends PluginPanel {
       setLayout(new BorderLayout());
       setPreferredSize(new Dimension(300, 400));
 
-      final JLabel label = new JLabel("Ask Gemini about OSRS:");
+      final JLabel label = new JLabel("Ask about OSRS:");
       label.setHorizontalAlignment(SwingConstants.CENTER);
       label.setFont(new Font("Arial", Font.BOLD, 14));
 
@@ -71,7 +71,7 @@ public class GPTPanel extends PluginPanel {
       }
 
       final String statsConfig = playerStats.getPlayerStatsAsString();
-      panelArea.setText("Querying Gemini...");
+      panelArea.setText("Querying " + gptClient.getProviderName() + "...");
       
 
       executorService.execute(() -> {

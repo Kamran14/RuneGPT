@@ -22,4 +22,25 @@ public class GPTRequest {
         .post(requestBody)
         .build();
   }
+
+  public static Request buildClaudeRequest(final String apiKey, final String model, final String prompt, final Gson gson) {
+    final String resolvedModel = (model == null || model.trim().isEmpty())
+        ? LLMConfig.CLAUDE_DEFAULT_MODEL
+        : model.trim();
+    final RequestBodyClaude request = RequestBodyClaude.createRequestBody(
+        resolvedModel, LLMConfig.INSTRUCTIONS, prompt, LLMConfig.CLAUDE_MAX_TOKENS);
+    final RequestBody requestBody = RequestBody.create(JSON, gson.toJson(request));
+
+    final Request.Builder builder = new Request.Builder()
+        .url(LLMConfig.CLAUDE_URL)
+        .addHeader(MEDIA_TYPE[0], MEDIA_TYPE[1])
+        .addHeader("x-api-key", apiKey)
+        .addHeader("anthropic-version", LLMConfig.CLAUDE_API_VERSION)
+        .post(requestBody);
+
+    if (RequestBodyClaude.supportsFallbacks(resolvedModel)) {
+      builder.addHeader("anthropic-beta", LLMConfig.CLAUDE_FALLBACK_BETA);
+    }
+    return builder.build();
+  }
 }
