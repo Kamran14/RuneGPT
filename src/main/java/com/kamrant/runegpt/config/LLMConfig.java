@@ -23,4 +23,11 @@ public final class LLMConfig {
     public static final String GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
     // Free tier allows ~8K tokens/minute, so keep the reply budget modest.
     public static final int GROQ_MAX_TOKENS = 2048;
+
+    // Starter: keyless Pollinations "Classic" text endpoint (plain-text replies, rate-limited per IP).
+    public static final String STARTER_URL = "https://text.pollinations.ai/";
+    // Live limit observed: 1 reply every 45 seconds per IP (402 + Retry-After when exceeded).
+    public static final int STARTER_MIN_INTERVAL_SECONDS = 45;
+    // Wait at most this long client-side for the next free slot before giving up on Starter.
+    public static final int STARTER_MAX_WAIT_SECONDS = 60;
 }

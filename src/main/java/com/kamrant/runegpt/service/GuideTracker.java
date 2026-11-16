@@ -5,15 +5,14 @@ import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.overlay.MapMarkerImage;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
@@ -35,7 +34,8 @@ public class GuideTracker {
    private final TargetHighlighter highlighter;
    private final WorldMapPointManager worldMapPointManager;
 
-   private final List<Consumer<GuidePlan>> listeners = new CopyOnWriteArrayList<>();
+   // The panel; replaced on every plugin start and cleared on shutdown.
+   private volatile Consumer<GuidePlan> listener;
    private volatile GuidePlan active;
    private WorldMapPoint mapPoint;
 
@@ -50,8 +50,9 @@ public class GuideTracker {
       this.worldMapPointManager = worldMapPointManager;
    }
 
-   public void addListener(final Consumer<GuidePlan> listener) {
-      listeners.add(listener);
+   /** Sets (or clears, with null) who is told about changes to the tracked guide. */
+   public void setListener(final Consumer<GuidePlan> listener) {
+      this.listener = listener;
    }
 
    /** The tracked guide with up-to-date item statuses, or null. */
@@ -102,8 +103,8 @@ public class GuideTracker {
       final Map<String, Integer> inventory = new LinkedHashMap<>();
       final Map<String, Integer> equipment = new LinkedHashMap<>();
       final Map<String, Integer> bank = new LinkedHashMap<>();
-      PlayerSnapshot.readContainer(client.getItemContainer(PlayerSnapshot.INVENTORY), itemManager, inventory);
-      PlayerSnapshot.readContainer(client.getItemContainer(PlayerSnapshot.EQUIPMENT), itemManager, equipment);
+      PlayerSnapshot.readContainer(client.getItemContainer(InventoryID.INV), itemManager, inventory);
+      PlayerSnapshot.readContainer(client.getItemContainer(InventoryID.WORN), itemManager, equipment);
       bankCache.getItems().forEach((id, qty) -> bank.merge(itemManager.getItemComposition(id).getName(), qty, Integer::sum));
       return new ItemHoldings(inventory, equipment, bank, bankCache.isKnown(), true);
    }
@@ -140,9 +141,9 @@ public class GuideTracker {
    }
 
    private void notifyListeners() {
-      final GuidePlan plan = active;
-      for (final Consumer<GuidePlan> l : listeners) {
-         l.accept(plan);
+      final Consumer<GuidePlan> l = listener;
+      if (l != null) {
+         l.accept(active);
       }
    }
 

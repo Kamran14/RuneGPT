@@ -96,8 +96,9 @@ public class TargetHighlightOverlay extends Overlay {
       if (local == null) {
          return;
       }
-      final Point from = Perspective.localToCanvas(client, local.getLocalLocation(), client.getPlane());
-      final Point to = Perspective.localToCanvas(client, target, client.getPlane());
+      final int plane = client.getTopLevelWorldView().getPlane();
+      final Point from = Perspective.localToCanvas(client, local.getLocalLocation(), plane);
+      final Point to = Perspective.localToCanvas(client, target, plane);
       if (from != null && to != null) {
          final Stroke old = g.getStroke();
          g.setStroke(DASH);

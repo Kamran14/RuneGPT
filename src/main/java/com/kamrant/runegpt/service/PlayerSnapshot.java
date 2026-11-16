@@ -19,6 +19,7 @@ import net.runelite.api.Quest;
 import net.runelite.api.QuestState;
 import net.runelite.api.Skill;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.game.ItemManager;
 
 /**
@@ -27,9 +28,6 @@ import net.runelite.client.game.ItemManager;
  */
 public final class PlayerSnapshot {
 
-   /** Container ids (gameval InventoryID): inventory and worn equipment. */
-   public static final int INVENTORY = 93;
-   public static final int EQUIPMENT = 94;
    private static final int MAX_NEARBY_NPCS = 15;
    private static final int MAX_BANK_CHARS = 1500;
 
@@ -83,7 +81,8 @@ public final class PlayerSnapshot {
 
       // Nearby NPC names, closest first: strong hints about where the player is.
       if (local != null) {
-         final List<NPC> npcs = new ArrayList<>(client.getNpcs());
+         final List<NPC> npcs = new ArrayList<>();
+         client.getTopLevelWorldView().npcs().forEach(npcs::add);
          final WorldPoint here = local.getWorldLocation();
          npcs.sort((x, y) -> Integer.compare(x.getWorldLocation().distanceTo(here), y.getWorldLocation().distanceTo(here)));
          final Set<String> names = new LinkedHashSet<>();
@@ -95,8 +94,8 @@ public final class PlayerSnapshot {
          s.nearbyNpcs.addAll(names);
       }
 
-      readContainer(client.getItemContainer(INVENTORY), itemManager, s.inventory);
-      readContainer(client.getItemContainer(EQUIPMENT), itemManager, s.equipment);
+      readContainer(client.getItemContainer(InventoryID.INV), itemManager, s.inventory);
+      readContainer(client.getItemContainer(InventoryID.WORN), itemManager, s.equipment);
       s.bankKnown = bankCache.isKnown();
       for (final Map.Entry<Integer, Integer> e : bankCache.getItems().entrySet()) {
          s.bank.merge(itemManager.getItemComposition(e.getKey()).getName(), e.getValue(), Integer::sum);

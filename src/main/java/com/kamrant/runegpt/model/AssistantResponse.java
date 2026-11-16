@@ -6,21 +6,19 @@ public final class AssistantResponse {
    private final boolean success;
    private final String answer;
    private final GuidePlan guide;
-   private final String provider;
 
-   private AssistantResponse(final boolean success, final String answer, final GuidePlan guide, final String provider) {
+   private AssistantResponse(final boolean success, final String answer, final GuidePlan guide) {
       this.success = success;
       this.answer = answer;
       this.guide = guide;
-      this.provider = provider;
    }
 
-   public static AssistantResponse of(final String answer, final GuidePlan guide, final String provider) {
-      return new AssistantResponse(true, answer, guide, provider);
+   public static AssistantResponse of(final String answer, final GuidePlan guide) {
+      return new AssistantResponse(true, answer, guide);
    }
 
    public static AssistantResponse failure(final String message) {
-      return new AssistantResponse(false, message, null, null);
+      return new AssistantResponse(false, message, null);
    }
 
    public boolean isSuccess() {
@@ -37,7 +35,4 @@ public final class AssistantResponse {
       return guide;
    }
 
-   public String getProvider() {
-      return provider;
-   }
 }

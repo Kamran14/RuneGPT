@@ -70,7 +70,7 @@ public class TargetHighlighter {
       NPC best = null;
       if (name != null) {
          int bestDist = Integer.MAX_VALUE;
-         for (final NPC npc : client.getNpcs()) {
+         for (final NPC npc : client.getTopLevelWorldView().npcs()) {
             if (npc.getName() != null && npc.getName().equalsIgnoreCase(name)) {
                final int d = here == null ? 0 : npc.getWorldLocation().distanceTo(here);
                if (d < bestDist) {

@@ -3,7 +3,9 @@ package com.kamrant.runegpt.config;
 public enum LLMProvider {
     GEMINI("Gemini"),
     CLAUDE("Claude"),
-    GROQ("Groq");
+    GROQ("Groq"),
+    /** Keyless Pollinations service: always available, slow and rate-limited. */
+    STARTER("Starter");
 
     private final String displayName;
 

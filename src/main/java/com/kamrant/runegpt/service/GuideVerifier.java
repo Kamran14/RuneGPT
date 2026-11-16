@@ -41,11 +41,9 @@ public class GuideVerifier {
    private static final int MAX_NPC_LOCATION_DISTANCE = 200;
 
    private final WikiLookup wiki;
-   private final ExecutorService pool = Executors.newFixedThreadPool(4, r -> {
-      final Thread t = new Thread(r, "RuneGPT-wiki");
-      t.setDaemon(true);
-      return t;
-   });
+   // Created on first use and shut down by the plugin's shutDown(); this class is a Guice singleton
+   // that outlives a plugin stop/start, so a stopped pool is replaced the next time it's needed.
+   private ExecutorService pool;
 
    @Inject
    public GuideVerifier(final WikiLookup wiki) {
@@ -76,6 +74,7 @@ public class GuideVerifier {
       }
 
       // Look everything up in parallel.
+      final ExecutorService pool = pool();
       final List<CompletableFuture<GuideItem>> itemLookups = new ArrayList<>();
       for (final GuideItem item : requested.values()) {
          if (itemLookups.size() >= MAX_ITEMS) {
@@ -194,7 +193,22 @@ public class GuideVerifier {
       }
    }
 
-   public void shutdown() {
-      pool.shutdownNow();
+   private synchronized ExecutorService pool() {
+      if (pool == null || pool.isShutdown()) {
+         pool = Executors.newFixedThreadPool(4, r -> {
+            final Thread t = new Thread(r, "RuneGPT-wiki");
+            t.setDaemon(true);
+            return t;
+         });
+      }
+      return pool;
+   }
+
+   /** Stops the lookup threads. Called from the plugin's shutDown(). */
+   public synchronized void shutdown() {
+      if (pool != null) {
+         pool.shutdownNow();
+         pool = null;
+      }
    }
 }

@@ -7,8 +7,6 @@ import com.kamrant.runegpt.config.LLMProvider;
 import com.kamrant.runegpt.model.ChatMessage;
 import com.kamrant.runegpt.model.ChatRole;
 import com.kamrant.runegpt.model.LlmReply;
-import com.kamrant.runegpt.model.ProviderStatus;
-import com.kamrant.runegpt.model.ProviderStatusState;
 import com.kamrant.runegpt.prompt.Prompts;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,30 +39,16 @@ public class GPTClient {
    // Fixed failover order after the primary provider.
    private final List<LLMProviderClient> providers = Arrays.asList(
       new GeminiProviderClient(), new ClaudeProviderClient(), new GroqProviderClient());
+   // Keyless provider, added last by orderedCandidates() rather than by API key.
+   private final StarterProviderClient starter = new StarterProviderClient();
    private final ConversationHistory history = new ConversationHistory();
    private final Map<LLMProvider, Instant> cooldownUntil = new EnumMap<>(LLMProvider.class);
-   // Provider that answered most recently (null until the first answer, or after all failed).
-   private volatile LLMProvider lastProvider;
 
    @Inject
    public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient, final Gson gson) {
       this.config = config;
       this.httpClient = httpClient;
       this.gson = gson;
-   }
-
-   public ProviderStatus status() {
-      final List<LLMProviderClient> candidates = orderedCandidates();
-      if (candidates.isEmpty()) {
-         return new ProviderStatus(ProviderStatusState.ERROR, "No API key set");
-      }
-      final LLMProvider last = lastProvider;
-      if (last != null) {
-         return new ProviderStatus(ProviderStatusState.CONNECTED, "Connected (" + last.getDisplayName() + ")");
-      }
-      final int backups = candidates.size() - 1;
-      return new ProviderStatus(ProviderStatusState.READY, "Ready (" + candidates.get(0).provider().getDisplayName()
-         + (backups > 0 ? " + " + backups + " backup" + (backups > 1 ? "s" : "") : "") + ")");
    }
 
    public void clearConversation() {
@@ -97,7 +81,8 @@ public class GPTClient {
    private LlmReply send(final String system, final List<ChatMessage> messages) {
       final List<LLMProviderClient> candidates = orderedCandidates();
       if (candidates.isEmpty()) {
-         return LlmReply.failure("No API keys set. Add at least one (Gemini, Claude or Groq) in the RuneGPT plugin settings.");
+         return LlmReply.failure("No API key set. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings "
+            + "(Groq is free), or turn on the free starter service.");
       }
 
       final List<String> failures = new ArrayList<>();
@@ -106,7 +91,6 @@ public class GPTClient {
          try {
             final String reply = client.send(httpClient, gson, system, messages, config);
             clearCooldown(provider);
-            lastProvider = provider;
             return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {
             log.warn("RuneGPT: {} failed, trying next provider: {}", provider, e.getMessage());
@@ -121,7 +105,11 @@ public class GPTClient {
          }
       }
 
-      lastProvider = null;
+      if (candidates.size() == 1 && candidates.get(0) == starter) {
+         return LlmReply.failure("The free Starter service couldn't answer (" + failures.get(0).replaceFirst("^Starter: ", "")
+            + "). It allows about one reply every 45 seconds; try again shortly, or add a free Groq key in the "
+            + "RuneGPT settings for faster, better answers.");
+      }
       return LlmReply.failure("All LLM providers are unavailable right now (out of tokens or erroring). "
          + "Try again in a bit.\n\n" + String.join("\n", failures));
    }
@@ -131,7 +119,7 @@ public class GPTClient {
     * cooldown move to the back rather than being dropped, so a stale cooldown never blocks an answer.
     */
    private List<LLMProviderClient> orderedCandidates() {
-      final LLMProvider primary = config.provider();
+      final LLMProvider primary = config.provider() == null ? null : config.provider().toProvider();
       final List<LLMProviderClient> ready = new ArrayList<>();
       final List<LLMProviderClient> coolingDown = new ArrayList<>();
 
@@ -146,8 +134,14 @@ public class GPTClient {
          (isCoolingDown(client.provider()) ? coolingDown : ready).add(client);
       }
       ready.addAll(coolingDown);
+
+      // Keyless Starter: only when the player has turned it on, and always last.
+      if (config.useStarterProvider()) {
+         ready.add(starter);
+      }
       return ready;
    }
+
 
    private synchronized boolean isCoolingDown(final LLMProvider provider) {
       final Instant until = cooldownUntil.get(provider);

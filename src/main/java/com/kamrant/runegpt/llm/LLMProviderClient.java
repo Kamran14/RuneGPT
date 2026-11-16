@@ -21,6 +21,11 @@ public interface LLMProviderClient {
    /** API key for this provider from config; blank means the provider is skipped. */
    String apiKey(RuneGPTConfig config);
 
+   /** False for keyless providers (Starter), which GPTClient adds on its own rules instead of by key. */
+   default boolean requiresKey() {
+      return true;
+   }
+
    Request buildRequest(String apiKey, String system, List<ChatMessage> history, RuneGPTConfig config, Gson gson);
 
    /** Returns the reply text, or throws if the response is an error or has no usable text. */

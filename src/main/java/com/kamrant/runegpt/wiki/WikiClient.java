@@ -20,14 +20,16 @@ import okhttp3.Request;
 import okhttp3.Response;
 
 /**
- * Reads pages from the Old School RuneScape Wiki (raw wikitext) and its search. Results are cached
- * for the session. Uses RuneLite's HTTP client, which identifies itself as RuneLite.
+ * Reads pages from the Old School RuneScape Wiki (raw wikitext) and its search. Pages are cached for the
+ * session so each one is fetched at most once, and requests send a descriptive User-Agent.
  */
 @Slf4j
 @Singleton
 public class WikiClient {
 
    private static final String BASE = "https://oldschool.runescape.wiki";
+   // The wiki asks automated clients to identify themselves. Generic: no player or account details.
+   private static final String USER_AGENT = "RuneLite RuneGPT plugin";
 
    private final OkHttpClient http;
    private final Gson gson;
@@ -50,7 +52,9 @@ public class WikiClient {
       if (cached != null) {
          return cached.isEmpty() ? null : cached;
       }
-      final Request request = new Request.Builder().url(pageUrl(title) + "?action=raw").build();
+      final Request request = new Request.Builder().url(pageUrl(title) + "?action=raw")
+         .header("User-Agent", USER_AGENT)
+         .build();
       try (Response response = http.newCall(request).execute()) {
          if (response.code() == 404) {
             pageCache.put(title, "");
@@ -74,7 +78,7 @@ public class WikiClient {
          .addQueryParameter("namespace", "0")
          .addQueryParameter("format", "json")
          .build();
-      try (Response response = http.newCall(new Request.Builder().url(url).build()).execute()) {
+      try (Response response = http.newCall(new Request.Builder().url(url).header("User-Agent", USER_AGENT).build()).execute()) {
          if (!response.isSuccessful() || response.body() == null) {
             return Collections.emptyList();
          }

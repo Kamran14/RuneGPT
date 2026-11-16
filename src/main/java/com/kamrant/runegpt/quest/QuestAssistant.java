@@ -160,7 +160,6 @@ public class QuestAssistant {
          .setQuest(quest)
          .setInput(questInput)
          .setWikiUrl(wikiUrl)
-         .setProvider(reply.getProvider().getDisplayName())
          .setBankKnown(player.isBankKnown())
          .setProgress(ResponseParser.str(json, "progress"))
          .setConfidence(ResponseParser.str(json, "confidence").toLowerCase(Locale.ROOT))

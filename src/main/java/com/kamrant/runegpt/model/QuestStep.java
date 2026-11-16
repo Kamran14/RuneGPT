@@ -21,7 +21,6 @@ public final class QuestStep {
    private List<GuideItem> items = Collections.emptyList();
    private List<String> then = Collections.emptyList();
    private String tip = "";
-   private String provider;
    private int removedUnverified;
    private boolean bankKnown;
    private List<String> suggestions = Collections.emptyList();
@@ -164,15 +163,6 @@ public final class QuestStep {
 
    public QuestStep setTip(final String tip) {
       this.tip = tip;
-      return this;
-   }
-
-   public String getProvider() {
-      return provider;
-   }
-
-   public QuestStep setProvider(final String provider) {
-      this.provider = provider;
       return this;
    }
 

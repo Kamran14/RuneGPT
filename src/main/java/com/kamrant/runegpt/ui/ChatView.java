@@ -160,9 +160,9 @@ public class ChatView extends JPanel {
          try {
             final int len = input.getDocument().getLength();
             if (len > 0 && input.getWidth() > 0) {
-               final Rectangle end = input.modelToView(len);
+               final java.awt.geom.Rectangle2D end = input.modelToView2D(len);
                if (end != null) {
-                  lines = end.y / input.getFontMetrics(input.getFont()).getHeight() + 1;
+                  lines = (int) end.getY() / input.getFontMetrics(input.getFont()).getHeight() + 1;
                }
             }
          } catch (final Exception ignored) {
@@ -188,12 +188,12 @@ public class ChatView extends JPanel {
       addRow(bubble(null, body, USER_BG), USER_INDENT);
    }
 
-   public void addAssistantMessage(final String providerName, final String markdown) {
-      addAssistantMessage(providerName, markdown, null);
+   public void addAssistantMessage(final String markdown) {
+      addAssistantMessage(markdown, null);
    }
 
    /** Answer text, optionally followed by a component (e.g. the guide checklist with Track button). */
-   public void addAssistantMessage(final String providerName, final String markdown, final JComponent extra) {
+   public void addAssistantMessage(final String markdown, final JComponent extra) {
       removeThinking();
       final HtmlPane pane = new HtmlPane(TEXT);
       pane.setHtml(MarkdownRenderer.toHtml(markdown));
@@ -211,7 +211,7 @@ public class ChatView extends JPanel {
          col.add(extra);
          body = col;
       }
-      addRow(bubble("RuneGPT  ·  " + providerName, body, ASSISTANT_BG), 0);
+      addRow(bubble("RuneGPT", body, ASSISTANT_BG), 0);
    }
 
    /** A custom card (e.g. a quest step) in place of a plain text answer. */
@@ -245,6 +245,11 @@ public class ChatView extends JPanel {
    public void setBusy(final boolean busy) {
       send.setEnabled(!busy);
       newChat.setEnabled(!busy);
+   }
+
+   /** Stops the "Thinking..." animation timer. Called when the plugin shuts down. */
+   public void shutdown() {
+      removeThinking();
    }
 
    public void clear() {

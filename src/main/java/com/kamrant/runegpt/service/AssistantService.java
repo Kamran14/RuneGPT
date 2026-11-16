@@ -33,7 +33,6 @@ public class AssistantService {
       if (!reply.isSuccess()) {
          return AssistantResponse.failure(reply.getText());
       }
-      final String provider = reply.getProvider().getDisplayName();
       final JsonObject json = ResponseParser.extractJson(gson, reply.getText());
 
       String answer = ResponseParser.str(json, "answer");
@@ -48,6 +47,6 @@ public class AssistantService {
          answer = "### " + guide.getTitle();
       }
       gpt.remember(prompt, answer);
-      return AssistantResponse.of(answer, guide, provider);
+      return AssistantResponse.of(answer, guide);
    }
 }

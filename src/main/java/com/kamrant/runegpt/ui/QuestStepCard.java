@@ -22,7 +22,7 @@ public final class QuestStepCard {
    public static String header(final QuestStep step) {
       switch (step.getKind()) {
          case STEP:
-            return "Quest helper · " + step.getProvider() + " · Wiki";
+            return "Quest helper · OSRS Wiki";
          case NOT_A_QUEST:
             return "Quest helper";
          default:

@@ -7,8 +7,8 @@ import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
-import com.kamrant.runegpt.service.PlayerSnapshot;
 import com.kamrant.runegpt.service.TargetHighlighter;
+import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.ui.GPTPanel;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
@@ -17,6 +17,7 @@ import net.runelite.api.GameState;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -28,10 +29,14 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.util.ImageUtil;
 
 @Slf4j
-@PluginDescriptor(name = "RuneGPT")
+@PluginDescriptor(
+	name = "RuneGPT",
+	description = "AI assistant for quests, bossing, skilling and money making, with wiki-checked guides and a live "
+		+ "item checklist. Sends your questions, stats, quest progress, inventory, worn items, bank (once opened) "
+		+ "and location to the AI provider you set a key for; looks up quest and item names on the OSRS Wiki.",
+	tags = {"ai", "gemini", "claude", "groq", "quest", "guide", "helper", "assistant", "wiki"}
+)
 public class RuneGPT extends Plugin {
-	/** gameval InventoryID.BANK. */
-	private static final int BANK_CONTAINER = 95;
 	public static final String LOGO = "logo.png";
 
 	@Inject
@@ -57,6 +62,9 @@ public class RuneGPT extends Plugin {
 
 	@Inject
 	private GuideVerifier guideVerifier;
+
+	@Inject
+	private GPTClient gptClient;
 
 	@Inject
 	private TargetHighlightOverlay targetHighlightOverlay;
@@ -88,12 +96,18 @@ public class RuneGPT extends Plugin {
 		clientToolbar.removeNavigation(navButton);
 		overlayManager.remove(targetHighlightOverlay);
 		overlayManager.remove(guideChecklistOverlay);
+		// Stop background threads (panel worker, wiki lookups) and UI timers.
+		gptPanel.shutdown();
+		guideVerifier.shutdown();
+		// Remove the world map marker, highlight target and hint arrow (client thread).
 		clientThread.invokeLater(() -> {
 			guideTracker.shutdown();
 			targetHighlighter.shutdown();
 		});
-		guideVerifier.shutdown();
-		gptPanel.shutdown();
+		gptClient.clearConversation();
+		bankCache.clear();
+		gptPanel = null;
+		navButton = null;
 	}
 
 	@Subscribe
@@ -111,10 +125,10 @@ public class RuneGPT extends Plugin {
 	@Subscribe
 	public void onItemContainerChanged(final ItemContainerChanged event) {
 		final int id = event.getContainerId();
-		if (id == BANK_CONTAINER) {
+		if (id == InventoryID.BANK) {
 			bankCache.update(event.getItemContainer().getItems());
 		}
-		if (id == BANK_CONTAINER || id == PlayerSnapshot.INVENTORY || id == PlayerSnapshot.EQUIPMENT) {
+		if (id == InventoryID.BANK || id == InventoryID.INV || id == InventoryID.WORN) {
 			// Live checklist: re-colour the tracked guide's items.
 			guideTracker.onItemsChanged();
 		}

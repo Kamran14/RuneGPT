@@ -1,92 +1,76 @@
 # 🧠 RuneGPT
 
 <div style="text-align:center">
-    
+
 ![RuneGPT](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/src/main/resources/com/kamrant/runegpt/logo.png)
 
 </div>
 
-Ask Gemini, Claude or Groq about Old School RuneScape (OSRS) using your current player stats and bank items!
+An AI assistant for Old School RuneScape in RuneLite's sidebar. Ask about quests, bosses, skilling or money making and get short, tactical answers tailored to your account, with guides checked against the OSRS Wiki and a live item checklist you can track in game.
 
 ## 🚀 Features
-- 🖥️ Easy-to-Use Panel: Ask questions directly from RuneLite’s sidebar.
-- ⚙️ Configurable: Securely enter and store your Gemini API key via RuneLite’s plugin settings.
-- 📊 Stats: User stats are automatically accounted for to cater for every unique request.
+- 🖥️ **Chat + guide sections**: ask anything, or pick a suggested guide (Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker, Minigames) with one click.
+- 📊 **Knows your account**: stats, quest progress, gear and (once opened) your bank are included automatically.
+- 📜 **Wiki-checked**: quest steps come from the OSRS Wiki, and items, NPCs and places are checked against it before you see them.
+- ✅ **Track guide**: a live checklist (green = ready, yellow = equip it, red = missing / in bank), an in-game overlay, a world map marker and NPC highlights.
+- 🔁 **Failover**: add more than one key and RuneGPT switches provider automatically if one fails or runs out of tokens.
 
-### UPCOMING:
-- 🛡️ Context-Aware: Queries include your bank items for tailored suggestions.
-- ⚔️🤺 Combat Items: Bring the best items you got for the fight! 
-- 🔹 Markdown-Style Display: View responses in a clean, markdown-styled panel with headings, lists, and bold highlights.
-- 🔌 Wiki Integration: Suggestions will reflect up-to-date guides
-- 🔌 GE Integration: Some responses will have real-time prices (Will require osrs API key)
 ### Showcase
 Questions about stats and quests integrated into plugin.
 ![Time constraint](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/stats_response2.png)
 ![Slayer Question](https://github.com/Kamran14/RuneGPT/blob/master/imgs/stats_response.png?raw=true)
 
 ## 🛠️ Setup
-1. Install the Plugin:
-    - Add the plugin via the RuneLite Plugin Hub.
-    - Enable RuneGPT from the RuneLite settings.
 
-2. Enter Your API Key (BYOK – Bring Your Own Key):
+1. **Install the plugin** from the RuneLite Plugin Hub and enable it.
 
-You must bring your own API key for Gemini (Google). This plugin does not provide one.
+2. **Add an API key** (Configuration 🛠️ → RuneGPT → *AI providers*). Add any of these; more than one gives automatic failover:
+    - **Groq** (free, no card): create a key at the [Groq Console](https://console.groq.com/keys) and paste it into **Groq API Key**. Default model `openai/gpt-oss-120b`.
+    - **Gemini**: get a key from Google [AI Studio](https://aistudio.google.com/app/apikey) (`Get API Key`) and paste it into **Gemini API Key**.
+    - **Claude**: create a key at the [Anthropic Console](https://console.anthropic.com/settings/keys) and paste it into **Claude API Key**. Optionally change **Claude Model** (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` are cheaper).
 
-Why?
+    **Primary LLM Provider** is tried first; if it errors or runs out of tokens, the others with a key are tried automatically. You only see an error if none of them can answer, or if no key is set.
 
-- 💳 API keys are tied to your Google account. (OpenAI upcoming)
-- 🚫 This plugin does not store or share your key. It stays local on your machine.
-
-🔑 How to Add Your API Key:
-- Go to Google [AI Studio](https://aistudio.google.com/app/apikey), click `Get API Key` and copy the key you just created
-- In RuneLite, go to Configuration (🛠️ wrench icon).
-- Find RuneGPT Plugin under settings.
-- Enter your Google Gemini API Key.
-
-🤖 Other providers (add as many keys as you like):
-- **Claude**: create a key at the [Anthropic Console](https://console.anthropic.com/settings/keys) and paste it into **Claude API Key**. Optionally change **Claude Model** (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` are cheaper).
-- **Groq (free, no card)**: create a key at the [Groq Console](https://console.groq.com/keys) and paste it into **Groq API Key**. The default model is `openai/gpt-oss-120b`.
-
-🔁 Automatic failover:
-- **Primary LLM Provider** is tried first. If it errors or runs out of tokens, RuneGPT moves on to the next provider that has a key, without you doing anything.
-- Your conversation is kept inside the plugin, so whichever provider answers can see the earlier messages. Use **Clear** in the panel to start a new conversation.
-- You only see an error once every configured provider has failed.
+3. **Optional: free starter service (no key).** To try RuneGPT without any key, turn on *Free starter service → Use free starter service*. It's **off by default**. It uses the keyless [Pollinations](https://pollinations.ai) service, which is slow, limited to about one reply every 45 seconds, and often inaccurate. When it's on, your questions and player data are sent to that free third-party service. With keys set, it's only used after your providers.
 
 ![API config](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/config_panel.png)
+
 ## ✨ Usage
 
-- Open the RuneGPT Panel from the sidebar.
-- The panel shows a status line (which AI provider is connected), the **chat** on top and collapsible **sections** below: Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker and Minigames. Drag the divider to give the chat or the sections more room.
+- Open the RuneGPT panel from the sidebar: the **chat** is on top and the collapsible guide **sections** are below. Drag the divider to give either more room.
 - Each section suggests guides based on your stats, gear and quest progress. Press **Ask** for a one-click answer, or click a guide's title to pick optional preferences (attack style, gear budget, fastest/cheapest/AFK) first.
-    - **Edit guide** lets you change its details (e.g. the monster or kill count) or rewrite the whole question. Edits are saved; **Reset to default** undoes them.
+    - **Edit guide** changes its details (e.g. the monster or kill count) or rewrites the whole question. Edits are saved; **Reset to default** undoes them.
     - **Something else?** at the bottom of each section lets you type your own interest.
-- **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next step, and a checklist of required items marked against your inventory, worn items and bank (open your bank once per session so it can be checked). **Highlight** puts an arrow, outline and a line to the NPC in-game when they're nearby. Anything the AI suggests that the wiki guide doesn't mention is hidden.
+- **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next steps, and the items you need. Anything the AI suggests that the wiki guide doesn't mention is hidden.
 - **Track guide**: answers that describe an activity (a boss, monster, skill method, quest step...) come with a checklist of gear to wear and items to bring, plus where to go. Press **Track guide** to pin it:
     - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank.
-    - An in-game overlay shows the same checklist with distance and direction to the target (toggle it with *Show guide checklist in game*).
+    - An in-game overlay shows the same checklist with distance and direction (toggle it with *In-game → Show guide checklist in game*).
     - The target gets a world map marker (orange = OSRS Wiki coordinates, grey = AI estimate), plus a hint arrow, outline and line to the NPC or spot when you're nearby.
-    - Every item, NPC and place is checked against the OSRS Wiki first; anything that doesn't exist is dropped.
-- Answers are formatted for the narrow sidebar: wide tables become stacked lists and stray HTML is stripped.
+- Ask follow-ups in the chat; **New chat** starts over. Answers are formatted for the narrow sidebar.
 - Or just type a question like:
-    - "What’s the best setup for Barrows with my stats?"
-    - "Whats the best way to level my agility?"
-    - "Whats a good money making method basded on my stats?"
-    - "Can I solo Zulrah with my current gear?" (upcoming)
+    - "What's the best setup for Barrows with my stats?"
+    - "What's the best way to level my Agility?"
+    - "What's a good money making method for my stats?"
 
-## 🛡️ Security
+## 🔒 Data & privacy
 
-- Your API key is stored locally via RuneLite’s secure configuration.
-- No keys or data are sent anywhere except directly to the LLM provider.
+RuneGPT sends data off your computer only to do what you ask:
+
+| What | Where it goes |
+|---|---|
+| Your questions, skill levels, quest progress, inventory, worn items, bank contents (only after you open your bank in that session) and location | The AI provider(s) you added a key for: Google Gemini, Anthropic Claude and/or Groq |
+| The same data, **only if you turn on the free starter service** | Pollinations (text.pollinations.ai), a free third-party service |
+| Quest, item, NPC and place names | The [OSRS Wiki](https://oldschool.runescape.wiki), to fetch guides and check that things exist |
+
+- API keys are stored in your RuneLite settings and only sent to their own provider.
+- Your conversation is kept in memory while the plugin runs and cleared when it stops. Bank contents are forgotten when you log out.
+- Each provider's own privacy policy applies to what you send it.
 
 ## 💸 Costs
 
-This plugin uses Google Gemini API, which currently offers free API access with generous usage limits. Check Google's terms for any updates on usage policies.
-### Note: OpenAI and others require you to add a payment method whereas Google does not. This was the main factor in picking the service.
+- **Groq** has a free tier with no card required, which is the easiest way to start.
+- **Gemini** offers free API access with usage limits; check Google's terms for current limits.
+- **Claude** is paid per use.
+- The optional starter service is free but heavily rate-limited.
 
-
-
-
-
-
-#### No, RuneGPT isn’t a true GPT model since it isn’t pre-trained. The name was chosen more for fun, though the project could eventually head in that direction.
+#### No, RuneGPT isn't a true GPT model since it isn't pre-trained.
