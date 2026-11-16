@@ -2,7 +2,8 @@ package com.kamrant.runegpt.config;
 
 public enum LLMProvider {
     GEMINI("Gemini"),
-    CLAUDE("Claude");
+    CLAUDE("Claude"),
+    GROQ("Groq");
 
     private final String displayName;
 

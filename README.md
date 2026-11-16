@@ -6,7 +6,7 @@
 
 </div>
 
-Ask Gemini about Old School RuneScape (OSRS) using your current player stats and bank items!
+Ask Gemini, Claude or Groq about Old School RuneScape (OSRS) using your current player stats and bank items!
 
 ## 🚀 Features
 - 🖥️ Easy-to-Use Panel: Ask questions directly from RuneLite’s sidebar.
@@ -44,10 +44,14 @@ Why?
 - Find RuneGPT Plugin under settings.
 - Enter your Google Gemini API Key.
 
-🤖 Using Claude instead:
-- Create an API key at the [Anthropic Console](https://console.anthropic.com/settings/keys).
-- In the RuneGPT settings, set **LLM Provider** to `Claude` and paste the key into **Claude API Key**.
-- Optionally change **Claude Model** (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` are cheaper).
+🤖 Other providers (add as many keys as you like):
+- **Claude**: create a key at the [Anthropic Console](https://console.anthropic.com/settings/keys) and paste it into **Claude API Key**. Optionally change **Claude Model** (default `claude-opus-5-5`; `claude-sonnet-5-5` or `claude-haiku-5-5` are cheaper).
+- **Groq (free, no card)**: create a key at the [Groq Console](https://console.groq.com/keys) and paste it into **Groq API Key**. The default model is `openai/gpt-oss-120b`.
+
+🔁 Automatic failover:
+- **Primary LLM Provider** is tried first. If it errors or runs out of tokens, RuneGPT moves on to the next provider that has a key, without you doing anything.
+- Your conversation is kept inside the plugin, so whichever provider answers can see the earlier messages. Use **Clear** in the panel to start a new conversation.
+- You only see an error once every configured provider has failed.
 
 ![API config](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/config_panel.png)
 ## ✨ Usage

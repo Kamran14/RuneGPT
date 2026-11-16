@@ -1,20 +1,27 @@
 package com.kamrant.runegpt.builders;
 
 import com.google.gson.annotations.SerializedName;
+import com.kamrant.runegpt.llm.ChatMessage;
+import java.util.List;
 
 public class RequestBodyGemini{
 
+   @SerializedName("systemInstruction")
+   private final Content systemInstruction;
    @SerializedName("contents")
    private final Content[] contents;
    @SerializedName("generationConfig")
    private final GenerationConfig generationConfig;
 
-   public RequestBodyGemini(final Content[] content, final GenerationConfig generationConfig) {
+   public RequestBodyGemini(final Content systemInstruction, final Content[] content,
+      final GenerationConfig generationConfig) {
+      this.systemInstruction = systemInstruction;
       this.contents = content;
       this.generationConfig = generationConfig;
    }
 
    public static class Content {
+      // Null for systemInstruction; Gson omits it.
       @SerializedName("role")
       private final String role;
       @SerializedName("parts")
@@ -56,12 +63,16 @@ public class RequestBodyGemini{
       }
    }
 
-   public static RequestBodyGemini createRequestBody(final String fullPrompt, final double temp) {
-      final Part part = new Part(fullPrompt);
-      final Content content = new Content("user", new Part[] { part });
-      final GenerationConfig generationConfig = new GenerationConfig(temp);
-      final RequestBodyGemini requestBodyData = new RequestBodyGemini(new Content[] { content }, generationConfig);
-  
-      return requestBodyData;
+   public static RequestBodyGemini createRequestBody(final String system, final List<ChatMessage> history,
+      final double temp) {
+      final Content[] contents = new Content[history.size()];
+      for (int i = 0; i < history.size(); i++) {
+         final ChatMessage msg = history.get(i);
+         // Gemini calls the assistant role "model".
+         final String role = msg.getRole() == ChatMessage.Role.USER ? "user" : "model";
+         contents[i] = new Content(role, new Part[] { new Part(msg.getText()) });
+      }
+      final Content systemInstruction = new Content(null, new Part[] { new Part(system) });
+      return new RequestBodyGemini(systemInstruction, contents, new GenerationConfig(temp));
    }
 }

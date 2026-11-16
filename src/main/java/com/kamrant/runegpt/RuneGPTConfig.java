@@ -11,8 +11,8 @@ public interface RuneGPTConfig extends Config {
 
 	@ConfigItem(
 		keyName = "provider",
-		name = "LLM Provider",
-		description = "Which LLM provider to send questions to",
+		name = "Primary LLM Provider",
+		description = "Provider to try first. If it fails or runs out of tokens, the others with a key are tried automatically",
 		position = 0
 	)
 	default LLMProvider provider() {
@@ -51,11 +51,32 @@ public interface RuneGPTConfig extends Config {
 		return LLMConfig.CLAUDE_DEFAULT_MODEL;
 	}
 
+	@ConfigItem(
+		keyName = "groqApiKey",
+		name = "Groq API Key",
+		description = "Free key from console.groq.com (no card needed)",
+		secret = true,
+		position = 4
+	)
+	default String groqApiKey() {
+		return "";
+	}
+
+	@ConfigItem(
+		keyName = "groqModel",
+		name = "Groq Model",
+		description = "Groq model ID, e.g. openai/gpt-oss-120b, openai/gpt-oss-20b",
+		position = 5
+	)
+	default String groqModel() {
+		return LLMConfig.GROQ_DEFAULT_MODEL;
+	}
+
  	@ConfigItem(
 	   keyName = "temperature",
 	   name = "LLM Temperature",
-	   description = "Set the temperature for the LLM (Gemini only; current Claude models do not accept it)",
-	   position = 4
+	   description = "Set the temperature for the LLM (Gemini and Groq; current Claude models do not accept it)",
+	   position = 6
 	)
 	default double temperature() {
 	        return 0.7;
@@ -66,7 +87,7 @@ public interface RuneGPTConfig extends Config {
 		keyName = "enable",
 		name = "Set API Key",
 		description = "Toggle when you have updated your API Key",
-		position = 5
+		position = 7
 	)
 	default boolean enable() {
 		return false;

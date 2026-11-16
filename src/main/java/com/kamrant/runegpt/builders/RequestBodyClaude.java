@@ -1,6 +1,7 @@
 package com.kamrant.runegpt.builders;
 
 import com.google.gson.annotations.SerializedName;
+import com.kamrant.runegpt.llm.ChatMessage;
 import java.util.Arrays;
 import java.util.List;
 
@@ -64,14 +65,18 @@ public class RequestBodyClaude {
       return FALLBACK_MODELS.contains(model);
    }
 
-   public static RequestBodyClaude createRequestBody(final String model, final String system, final String prompt,
-      final int maxTokens) {
-      final Message message = new Message("user", prompt);
+   public static RequestBodyClaude createRequestBody(final String model, final String system,
+      final List<ChatMessage> history, final int maxTokens) {
+      final Message[] messages = new Message[history.size()];
+      for (int i = 0; i < history.size(); i++) {
+         final ChatMessage msg = history.get(i);
+         messages[i] = new Message(msg.getRole() == ChatMessage.Role.USER ? "user" : "assistant", msg.getText());
+      }
       return new RequestBodyClaude(
          model,
          maxTokens,
          system,
-         new Message[] { message },
+         messages,
          new OutputConfig("medium"),
          supportsFallbacks(model) ? "default" : null);
    }
