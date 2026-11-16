@@ -1,5 +1,7 @@
 package com.kamrant.runegpt.service;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -23,8 +25,8 @@ import net.runelite.api.coords.WorldPoint;
 @Singleton
 public class TargetHighlighter {
 
-   /** Within this many tiles of the location, the game's native hint arrow points at the tile. */
-   private static final int LOCATION_ARROW_RANGE = 60;
+   /** Within this many tiles of the location, local pathfinding, scene highlighting and the hint arrow activate. */
+   public static final int CLOSE_ENOUGH_RANGE = 40;
    /** Radius (in tiles) around the player scanned for objects mentioned in the current step. */
    private static final int OBJECT_SCAN_RADIUS = 26;
 
@@ -39,6 +41,7 @@ public class TargetHighlighter {
    private volatile TileObject targetObject;
    private volatile String targetObjectName;
    private volatile WorldPoint targetTile;
+   private volatile List<WorldPoint> walkablePath = Collections.emptyList();
    private boolean arrowSet;
 
    @Inject
@@ -58,6 +61,7 @@ public class TargetHighlighter {
       this.targetObject = null;
       this.targetObjectName = null;
       this.targetTile = null;
+      this.walkablePath = Collections.emptyList();
    }
 
    /** Update the active step number and text without resetting the map target. Safe from any thread. */
@@ -87,6 +91,16 @@ public class TargetHighlighter {
    /** The location tile when it's in local range, or null. */
    public WorldPoint getTargetTile() {
       return targetTile;
+   }
+
+   /** Collision-checked walkable tile path from the player to the target when close enough, or empty when far away. */
+   public List<WorldPoint> getWalkablePath() {
+      return walkablePath;
+   }
+
+   /** True when the player is within local pathfinding range of the destination. */
+   public boolean isCloseEnough() {
+      return targetTile != null || targetNpc != null || targetObject != null;
    }
 
    /** The tracked destination coordinates (NPC, object, or location at any distance), or null. */
@@ -126,15 +140,18 @@ public class TargetHighlighter {
          targetObject = null;
          targetObjectName = null;
          targetTile = null;
+         walkablePath = Collections.emptyList();
          clearArrow();
          return;
       }
       final Player local = client.getLocalPlayer();
       final WorldPoint here = local == null ? null : local.getWorldLocation();
+      final boolean nearLocation = loc == null
+         || (here != null && loc.getPlane() == here.getPlane() && loc.distanceTo2D(here) <= CLOSE_ENOUGH_RANGE);
       final String tgt = targetName == null ? "" : targetName.toLowerCase(Locale.ROOT);
       final String stepLower = ((step == null ? "" : step.toLowerCase(Locale.ROOT)) + " " + tgt).trim();
 
-      // 1. Check loaded NPCs (matching either the guide's npcName or an NPC named in the current step).
+      // 1. Check loaded NPCs (matching the guide's npcName, or an NPC named in the current step when near the destination).
       NPC bestNpc = null;
       int bestNpcDist = Integer.MAX_VALUE;
       for (final NPC npc : client.getTopLevelWorldView().npcs()) {
@@ -143,7 +160,7 @@ public class TargetHighlighter {
             continue;
          }
          final boolean matches = (name != null && n.equalsIgnoreCase(name))
-            || (!stepLower.isEmpty() && n.length() >= 3 && stepMentionsEntity(stepLower, n));
+            || (nearLocation && !stepLower.isEmpty() && n.length() >= 3 && stepMentionsEntity(stepLower, n));
          if (matches) {
             final int d = here == null ? 0 : npc.getWorldLocation().distanceTo(here);
             if (d < bestNpcDist) {
@@ -157,15 +174,16 @@ public class TargetHighlighter {
          targetObject = null;
          targetObjectName = null;
          targetTile = bestNpc.getWorldLocation();
+         walkablePath = LocalPathfinder.findPath(client, here, targetTile);
          client.setHintArrow(bestNpc);
          arrowSet = true;
          return;
       }
 
-      // 2. Check nearby TileObjects mentioned in the current step (anvil, bed, pyre site, whirlpool, bank...).
+      // 2. Check nearby TileObjects mentioned in the current step only when within range of the destination area.
       TileObject bestObj = null;
       String bestObjName = null;
-      if (here != null && !stepLower.isEmpty()) {
+      if (nearLocation && here != null && !stepLower.isEmpty()) {
          final Object[] found = findMatchingObject(here, stepLower);
          if (found != null) {
             bestObj = (TileObject) found[0];
@@ -176,18 +194,26 @@ public class TargetHighlighter {
       targetObjectName = bestObjName;
       if (bestObj != null) {
          targetTile = bestObj.getWorldLocation();
+         walkablePath = LocalPathfinder.findPath(client, here, targetTile);
          client.setHintArrow(bestObj.getWorldLocation());
          arrowSet = true;
          return;
       }
 
-      // 3. Otherwise point at the location tile when within range.
-      if (loc != null && here != null && loc.getPlane() == here.getPlane() && loc.distanceTo(here) <= LOCATION_ARROW_RANGE) {
+      // 3. Point at the location tile when within CLOSE_ENOUGH_RANGE, and always compute the collision-checked
+      // walkable path around local buildings/obstacles toward the destination.
+      if (loc != null && nearLocation) {
          targetTile = loc;
+         walkablePath = LocalPathfinder.findPath(client, here, loc);
          client.setHintArrow(loc);
          arrowSet = true;
+      } else if (loc != null && here != null) {
+         targetTile = null;
+         walkablePath = LocalPathfinder.findPath(client, here, loc);
+         clearArrow();
       } else {
          targetTile = null;
+         walkablePath = Collections.emptyList();
          clearArrow();
       }
    }
@@ -311,6 +337,7 @@ public class TargetHighlighter {
       targetObject = null;
       targetObjectName = null;
       targetTile = null;
+      walkablePath = Collections.emptyList();
       clearArrow();
    }
 }
