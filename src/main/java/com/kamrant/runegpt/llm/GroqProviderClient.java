@@ -24,7 +24,12 @@ public class GroqProviderClient implements LLMProviderClient {
    }
 
    @Override
-   public String apiKey(final RuneGPTConfig config) {
+   public String keyName() {
+      return "groqApiKey";
+   }
+
+   @Override
+   public String storedKey(final RuneGPTConfig config) {
       return config.groqApiKey();
    }
 

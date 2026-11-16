@@ -23,7 +23,12 @@ public class GeminiProviderClient implements LLMProviderClient {
    }
 
    @Override
-   public String apiKey(final RuneGPTConfig config) {
+   public String keyName() {
+      return "apiKey";
+   }
+
+   @Override
+   public String storedKey(final RuneGPTConfig config) {
       return config.apiKey();
    }
 

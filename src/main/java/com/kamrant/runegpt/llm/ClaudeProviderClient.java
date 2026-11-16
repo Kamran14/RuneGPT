@@ -23,7 +23,12 @@ public class ClaudeProviderClient implements LLMProviderClient {
    }
 
    @Override
-   public String apiKey(final RuneGPTConfig config) {
+   public String keyName() {
+      return "claudeApiKey";
+   }
+
+   @Override
+   public String storedKey(final RuneGPTConfig config) {
       return config.claudeApiKey();
    }
 

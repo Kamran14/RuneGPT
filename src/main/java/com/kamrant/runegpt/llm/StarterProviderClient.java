@@ -33,7 +33,12 @@ public class StarterProviderClient implements LLMProviderClient {
    }
 
    @Override
-   public String apiKey(final RuneGPTConfig config) {
+   public String storedKey(final RuneGPTConfig config) {
+      return "";
+   }
+
+   @Override
+   public String keyName() {
       return "";
    }
 
@@ -58,18 +63,18 @@ public class StarterProviderClient implements LLMProviderClient {
    }
 
    @Override
-   public String send(final OkHttpClient httpClient, final Gson gson, final String system,
+   public String send(final OkHttpClient httpClient, final Gson gson, final String apiKey, final String system,
       final List<ChatMessage> history, final RuneGPTConfig config) throws ProviderException {
       waitForSlot();
       try {
-         return LLMProviderClient.super.send(httpClient, gson, system, history, config);
+         return LLMProviderClient.super.send(httpClient, gson, apiKey, system, history, config);
       } catch (final ProviderException e) {
          // Server says the slot isn't free yet (e.g. another RuneGPT window on this IP): wait once and retry.
          if (!e.isQuotaExhausted()) {
             throw e;
          }
          waitForSlot();
-         return LLMProviderClient.super.send(httpClient, gson, system, history, config);
+         return LLMProviderClient.super.send(httpClient, gson, apiKey, system, history, config);
       } finally {
          reserveNextSlot(null);
       }

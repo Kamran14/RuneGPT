@@ -7,10 +7,12 @@ import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
 import com.kamrant.runegpt.service.BankCache;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
+import com.kamrant.runegpt.service.KeyVault;
 import com.kamrant.runegpt.service.TargetHighlighter;
 import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.ui.GPTPanel;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.GameState;
@@ -20,6 +22,7 @@ import net.runelite.api.events.ItemContainerChanged;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -67,6 +70,12 @@ public class RuneGPT extends Plugin {
 	private GPTClient gptClient;
 
 	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private KeyVault keyVault;
+
+	@Inject
 	private TargetHighlightOverlay targetHighlightOverlay;
 
 	@Inject
@@ -86,6 +95,8 @@ public class RuneGPT extends Plugin {
 				.build();
 
 		clientToolbar.addNavigation(navButton);
+		// Encrypt any API keys still stored in plain text (e.g. from older versions).
+		encryptStoredKeys();
 		overlayManager.add(targetHighlightOverlay);
 		overlayManager.add(guideChecklistOverlay);
 		gptPanel.refreshGuides();
@@ -108,6 +119,33 @@ public class RuneGPT extends Plugin {
 		bankCache.clear();
 		gptPanel = null;
 		navButton = null;
+	}
+
+	@Subscribe
+	public void onConfigChanged(final ConfigChanged event) {
+		// A key was just entered in the settings: replace it with the encrypted form right away. RuneLite only
+		// writes settings to disk / profile sync in batches, so the plain value is never persisted.
+		if (RuneGPTConfig.GROUP.equals(event.getGroup())
+			&& Arrays.asList(RuneGPTConfig.KEY_SETTINGS).contains(event.getKey())
+			&& event.getNewValue() != null && !event.getNewValue().trim().isEmpty()
+			&& !KeyVault.isEncrypted(event.getNewValue())) {
+			encryptStoredKeys();
+		}
+	}
+
+	private void encryptStoredKeys() {
+		for (final String setting : RuneGPTConfig.KEY_SETTINGS) {
+			final String value = configManager.getConfiguration(RuneGPTConfig.GROUP, setting);
+			if (value == null || value.trim().isEmpty() || KeyVault.isEncrypted(value)) {
+				continue;
+			}
+			final String encrypted = keyVault.encrypt(value.trim(), setting);
+			if (encrypted != null) {
+				configManager.setConfiguration(RuneGPTConfig.GROUP, setting, encrypted);
+			} else {
+				log.warn("RuneGPT: couldn't encrypt the {} setting; it stays as entered", setting);
+			}
+		}
 	}
 
 	@Subscribe

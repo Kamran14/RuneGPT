@@ -8,6 +8,7 @@ import com.kamrant.runegpt.model.ChatMessage;
 import com.kamrant.runegpt.model.ChatRole;
 import com.kamrant.runegpt.model.LlmReply;
 import com.kamrant.runegpt.prompt.Prompts;
+import com.kamrant.runegpt.service.KeyVault;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ public class GPTClient {
    private final RuneGPTConfig config;
    private final OkHttpClient httpClient;
    private final Gson gson;
+   private final KeyVault vault;
 
    // Fixed failover order after the primary provider.
    private final List<LLMProviderClient> providers = Arrays.asList(
@@ -45,8 +47,9 @@ public class GPTClient {
    private final Map<LLMProvider, Instant> cooldownUntil = new EnumMap<>(LLMProvider.class);
 
    @Inject
-   public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient, final Gson gson) {
+   public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient, final Gson gson, final KeyVault vault) {
       this.config = config;
+      this.vault = vault;
       this.httpClient = httpClient;
       this.gson = gson;
    }
@@ -79,8 +82,16 @@ public class GPTClient {
    }
 
    private LlmReply send(final String system, final List<ChatMessage> messages) {
-      final List<LLMProviderClient> candidates = orderedCandidates();
+      // Keys are decrypted here, per request, and only kept in this local map for the duration of the call.
+      final Map<LLMProvider, String> keys = new EnumMap<>(LLMProvider.class);
+      final List<String> undecryptable = new ArrayList<>();
+      final List<LLMProviderClient> candidates = orderedCandidates(keys, undecryptable);
       if (candidates.isEmpty()) {
+         if (!undecryptable.isEmpty()) {
+            return LlmReply.failure("Your saved " + String.join(", ", undecryptable) + " key couldn't be decrypted on "
+               + "this computer. Keys are encrypted with a key kept only on the computer where you entered them, "
+               + "so please re-enter it in the RuneGPT plugin settings.");
+         }
          return LlmReply.failure("No API key set. Add a Gemini, Claude or Groq key in the RuneGPT plugin settings "
             + "(Groq is free), or turn on the free starter service.");
       }
@@ -89,7 +100,7 @@ public class GPTClient {
       for (final LLMProviderClient client : candidates) {
          final LLMProvider provider = client.provider();
          try {
-            final String reply = client.send(httpClient, gson, system, messages, config);
+            final String reply = client.send(httpClient, gson, keys.getOrDefault(provider, ""), system, messages, config);
             clearCooldown(provider);
             return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {
@@ -110,6 +121,9 @@ public class GPTClient {
             + "). It allows about one reply every 45 seconds; try again shortly, or add a free Groq key in the "
             + "RuneGPT settings for faster, better answers.");
       }
+      for (final String name : undecryptable) {
+         failures.add(name + ": saved key can't be decrypted on this computer, please re-enter it");
+      }
       return LlmReply.failure("All LLM providers are unavailable right now (out of tokens or erroring). "
          + "Try again in a bit.\n\n" + String.join("\n", failures));
    }
@@ -118,7 +132,8 @@ public class GPTClient {
     * Providers with an API key: the primary first, then the rest in fixed order. Providers on a quota
     * cooldown move to the back rather than being dropped, so a stale cooldown never blocks an answer.
     */
-   private List<LLMProviderClient> orderedCandidates() {
+   private List<LLMProviderClient> orderedCandidates(final Map<LLMProvider, String> keysOut,
+      final List<String> undecryptable) {
       final LLMProvider primary = config.provider() == null ? null : config.provider().toProvider();
       final List<LLMProviderClient> ready = new ArrayList<>();
       final List<LLMProviderClient> coolingDown = new ArrayList<>();
@@ -127,10 +142,15 @@ public class GPTClient {
       ordered.sort((a, b) -> Boolean.compare(b.provider() == primary, a.provider() == primary));
 
       for (final LLMProviderClient client : ordered) {
-         final String key = client.apiKey(config);
-         if (key == null || key.trim().isEmpty()) {
+         final String key = vault.reveal(client.storedKey(config), client.keyName());
+         if (key == null) {
+            undecryptable.add(client.provider().getDisplayName());
             continue;
          }
+         if (key.isEmpty()) {
+            continue;
+         }
+         keysOut.put(client.provider(), key);
          (isCoolingDown(client.provider()) ? coolingDown : ready).add(client);
       }
       ready.addAll(coolingDown);

@@ -18,8 +18,11 @@ public interface LLMProviderClient {
 
    LLMProvider provider();
 
-   /** API key for this provider from config; blank means the provider is skipped. */
-   String apiKey(RuneGPTConfig config);
+   /** The stored (normally encrypted) API key setting for this provider; blank means the provider is skipped. */
+   String storedKey(RuneGPTConfig config);
+
+   /** Name of the setting that holds this provider's key (also binds its encryption); "" if keyless. */
+   String keyName();
 
    /** False for keyless providers (Starter), which GPTClient adds on its own rules instead of by key. */
    default boolean requiresKey() {
@@ -36,9 +39,10 @@ public interface LLMProviderClient {
       return Duration.ofSeconds(120);
    }
 
-   default String send(final OkHttpClient httpClient, final Gson gson, final String system,
+   /** Sends a request. {@code apiKey} is the decrypted key (held only for the duration of the call). */
+   default String send(final OkHttpClient httpClient, final Gson gson, final String apiKey, final String system,
       final List<ChatMessage> history, final RuneGPTConfig config) throws ProviderException {
-      final Request request = buildRequest(apiKey(config).trim(), system, history, config, gson);
+      final Request request = buildRequest(apiKey, system, history, config, gson);
       final OkHttpClient client = httpClient.newBuilder().readTimeout(readTimeout()).build();
       try (Response response = client.newCall(request).execute()) {
          final String body = response.body() == null ? "" : response.body().string();

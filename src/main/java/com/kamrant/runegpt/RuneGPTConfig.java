@@ -7,14 +7,20 @@ import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
 
-@ConfigGroup("RuneGPTConfig")
+@ConfigGroup(RuneGPTConfig.GROUP)
 public interface RuneGPTConfig extends Config {
+
+	String GROUP = "RuneGPTConfig";
+
+	/** Settings holding API keys. They're stored encrypted (see KeyVault). */
+	String[] KEY_SETTINGS = {"apiKey", "claudeApiKey", "groqApiKey"};
 
 	/** What leaves the client, and where. Shown on the providers section; also in the plugin description and README. */
 	String DATA_DISCLOSURE = "Data sent: your questions, skill levels, quest progress, inventory, worn items, bank "
 		+ "contents (once you open your bank) and location are sent to the AI provider(s) you set a key for "
 		+ "(Google Gemini, Anthropic Claude, Groq). Quest and item names are looked up on the OSRS Wiki. "
-		+ "API keys are stored in your RuneLite settings and only sent to their own provider.";
+		+ "API keys are stored encrypted in your RuneLite settings (the decryption key stays on this computer) and "
+		+ "are only sent to their own provider.";
 
 	@ConfigSection(
 		name = "AI providers",
@@ -51,7 +57,7 @@ public interface RuneGPTConfig extends Config {
 	@ConfigItem(
 		keyName = "apiKey",
 		name = "Gemini API Key",
-		description = "Key from Google AI Studio (aistudio.google.com). Questions and player data are sent to Google.",
+		description = "Key from Google AI Studio (aistudio.google.com). Questions and player data are sent to Google. Stored encrypted; re-enter it on a new computer.",
 		secret = true,
 		position = 1,
 		section = providersSection
@@ -63,7 +69,7 @@ public interface RuneGPTConfig extends Config {
 	@ConfigItem(
 		keyName = "claudeApiKey",
 		name = "Claude API Key",
-		description = "Key from console.anthropic.com. Questions and player data are sent to Anthropic.",
+		description = "Key from console.anthropic.com. Questions and player data are sent to Anthropic. Stored encrypted; re-enter it on a new computer.",
 		secret = true,
 		position = 2,
 		section = providersSection
@@ -86,7 +92,7 @@ public interface RuneGPTConfig extends Config {
 	@ConfigItem(
 		keyName = "groqApiKey",
 		name = "Groq API Key",
-		description = "Free key from console.groq.com (no card needed). Questions and player data are sent to Groq.",
+		description = "Free key from console.groq.com (no card needed). Questions and player data are sent to Groq. Stored encrypted; re-enter it on a new computer.",
 		secret = true,
 		position = 4,
 		section = providersSection

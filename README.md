@@ -62,7 +62,9 @@ RuneGPT sends data off your computer only to do what you ask:
 | The same data, **only if you turn on the free starter service** | Pollinations (text.pollinations.ai), a free third-party service |
 | Quest, item, NPC and place names | The [OSRS Wiki](https://oldschool.runescape.wiki), to fetch guides and check that things exist |
 
-- API keys are stored in your RuneLite settings and only sent to their own provider.
+- API keys are **encrypted** (AES-256-GCM) before they're saved in your RuneLite settings, so synced RuneLite profiles and copied profile files never contain a usable key. The decryption key is created on first use and kept only on your computer in `~/.runelite/runegpt/secret.key`; it is never synced. On a new computer, re-enter your keys once.
+- Keys are only decrypted in memory when a request is sent, and only sent to their own provider.
+- Limitation: software running under your own computer account could read both files and decrypt the keys. Protecting against that would need your operating system's credential store, which RuneLite plugins can't rely on.
 - Your conversation is kept in memory while the plugin runs and cleared when it stops. Bank contents are forgotten when you log out.
 - Each provider's own privacy policy applies to what you send it.
 
