@@ -57,7 +57,12 @@ Why?
 ## ✨ Usage
 
 - Open the RuneGPT Panel from the sidebar.
-- Enter a question like:
+- **Guides tab**: pick a category (Quests, Monsters, Bosses, Skilling, Money, Minigames) to see suggestions based on your stats and quest progress, e.g. "Continue *quest*" for quests you've started, or "Train *your lowest skill* to *next milestone*".
+    - **Ask** sends the guide to the chat.
+    - **Edit** lets you change its details (e.g. the monster or kill count) or rewrite the whole question. Your edits are saved; **Reset to default** undoes them.
+    - **Other** at the bottom of each category lets you type your own interest.
+- **Chat tab**: answers are formatted (headings, lists, bold, links to the wiki). Ask follow-ups, or press **New chat** to start over.
+- Or just type a question like:
     - "What’s the best setup for Barrows with my stats?"
     - "Whats the best way to level my agility?"
     - "Whats a good money making method basded on my stats?"

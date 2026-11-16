@@ -1,115 +1,125 @@
 package com.kamrant.runegpt.panels;
 
-import javax.swing.JButton;
+import com.kamrant.runegpt.guides.GuideStore;
+import com.kamrant.runegpt.handler.GPTClient;
+import com.kamrant.runegpt.service.PlayerSnapshot;
+import com.kamrant.runegpt.ui.ChatView;
+import com.kamrant.runegpt.ui.GuidesView;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import javax.inject.Inject;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.GridLayout;
-import java.awt.event.ActionEvent;
-import java.util.concurrent.ScheduledExecutorService;
-import javax.inject.Inject;
-import com.kamrant.runegpt.handler.GPTClient;
-import com.kamrant.runegpt.service.PlayerStats;
+import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.client.callback.ClientThread;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.ui.components.materialtabs.MaterialTab;
+import net.runelite.client.ui.components.materialtabs.MaterialTabGroup;
 
+/** Sidebar panel: a Guides tab (categories and recommended guides) and a Chat tab. */
 @Slf4j
 public class GPTPanel extends PluginPanel {
-   private final JTextArea panelArea = new JTextArea();
-   private final JTextArea queryField = new JTextArea();
-   private final JButton submitBtn = new JButton("Submit");
-   private final JButton clearBtn = new JButton("Clear");
 
-   // Transcript of the conversation shown to the player. Only touched on the Swing thread.
-   private final StringBuilder transcript = new StringBuilder();
+   private final Client client;
+   private final ClientThread clientThread;
+   private final GPTClient gptClient;
 
-   private PlayerStats playerStats;
-   private GPTClient gptClient;
-   private ScheduledExecutorService executorService;
+   private final GuidesView guidesView;
+   private final ChatView chatView;
+   private final MaterialTabGroup tabs;
+   private final MaterialTab chatTab;
+
+   // LLM calls can take a while (and fail over across providers), so keep them off
+   // RuneLite's shared executor.
+   private final ExecutorService llmExecutor = Executors.newSingleThreadExecutor(r -> {
+      final Thread t = new Thread(r, "RuneGPT-LLM");
+      t.setDaemon(true);
+      return t;
+   });
 
    @Inject
-   public GPTPanel(final Client client, final GPTClient gptClient, final ScheduledExecutorService executorService) {
+   public GPTPanel(final Client client, final ClientThread clientThread, final GPTClient gptClient,
+      final GuideStore guideStore) {
+      super(false);
+      this.client = client;
+      this.clientThread = clientThread;
       this.gptClient = gptClient;
-      this.playerStats = new PlayerStats(client);
-      this.executorService = executorService;
+
       setLayout(new BorderLayout());
-      setPreferredSize(new Dimension(300, 400));
+      setBackground(ColorScheme.DARK_GRAY_COLOR);
 
-      final JLabel label = new JLabel("Ask about OSRS:");
-      label.setHorizontalAlignment(SwingConstants.CENTER);
-      label.setFont(new Font("Arial", Font.BOLD, 14));
+      guidesView = new GuidesView(guideStore, this::ask, this::refreshGuides);
+      chatView = new ChatView(text -> ask(text, text), gptClient::clearConversation);
 
-      queryField.setPreferredSize(new Dimension(250, 30));
-      queryField.setLineWrap(true);
-      queryField.setWrapStyleWord(true);
+      final JLabel title = new JLabel("RuneGPT");
+      title.setFont(FontManager.getRunescapeBoldFont());
+      title.setForeground(Color.WHITE);
+      final JLabel subtitle = new JLabel("Your OSRS assistant");
+      subtitle.setFont(FontManager.getRunescapeSmallFont());
+      subtitle.setForeground(ColorScheme.MEDIUM_GRAY_COLOR);
+      final JPanel header = new JPanel(new BorderLayout());
+      header.setBackground(ColorScheme.DARK_GRAY_COLOR);
+      header.setBorder(new EmptyBorder(8, 8, 4, 8));
+      header.add(title, BorderLayout.NORTH);
+      header.add(subtitle, BorderLayout.SOUTH);
 
-      submitBtn.addActionListener(this::onSubmit);
-      clearBtn.addActionListener(this::onClear);
-      clearBtn.setToolTipText("Start a new conversation");
+      final JPanel display = new JPanel(new BorderLayout());
+      display.setBackground(ColorScheme.DARK_GRAY_COLOR);
+      tabs = new MaterialTabGroup(display);
+      tabs.setBorder(new EmptyBorder(4, 0, 4, 0));
+      final MaterialTab guidesTab = new MaterialTab("Guides", tabs, guidesView);
+      chatTab = new MaterialTab("Chat", tabs, chatView);
+      tabs.addTab(guidesTab);
+      tabs.addTab(chatTab);
+      tabs.select(guidesTab);
 
-      panelArea.setEditable(false);
-      panelArea.setLineWrap(true);
-      panelArea.setWrapStyleWord(true);
-      final JScrollPane scrollPane = new JScrollPane(panelArea);
-      scrollPane.setPreferredSize(new Dimension(280, 250));
+      final JPanel north = new JPanel(new BorderLayout());
+      north.setBackground(ColorScheme.DARK_GRAY_COLOR);
+      north.add(header, BorderLayout.NORTH);
+      north.add(tabs, BorderLayout.SOUTH);
 
-      final JPanel buttons = new JPanel(new GridLayout(2, 1, 0, 5));
-      buttons.add(submitBtn);
-      buttons.add(clearBtn);
-
-      final JPanel inputPanel = new JPanel(new BorderLayout(5, 5));
-      inputPanel.add(label, BorderLayout.NORTH);
-      inputPanel.add(queryField, BorderLayout.CENTER);
-      inputPanel.add(buttons, BorderLayout.EAST);
-
-      add(inputPanel, BorderLayout.NORTH);
-      add(scrollPane, BorderLayout.CENTER);
+      add(north, BorderLayout.NORTH);
+      add(display, BorderLayout.CENTER);
    }
 
-   private void onSubmit(final ActionEvent e) {
-      final String query = queryField.getText().trim();
-      if (query.isEmpty()) {
-         panelArea.setText(transcript + "Please enter a query.");
-         return;
-      }
+   /** Re-read stats and quest progress, then rebuild the guide suggestions. */
+   public void refreshGuides() {
+      clientThread.invokeLater(() -> {
+         final PlayerSnapshot snapshot = PlayerSnapshot.capture(client);
+         SwingUtilities.invokeLater(() -> guidesView.setSnapshot(snapshot));
+      });
+   }
 
-      final String statsConfig = playerStats.getPlayerStatsAsString();
-      submitBtn.setEnabled(false);
-      clearBtn.setEnabled(false);
-      queryField.setText("");
-      final String userLine = "You: " + query + "\n\n";
-      panelArea.setText(transcript + userLine + "Thinking...");
+   /** Show {@code display} in the chat and send {@code prompt} with fresh player context. */
+   private void ask(final String display, final String prompt) {
+      tabs.select(chatTab);
+      chatView.addUserMessage(display);
+      chatView.showThinking();
 
-      executorService.execute(() -> {
-         final GPTClient.Reply reply = gptClient.ask(query, "Player Stats:\n" + statsConfig);
-         SwingUtilities.invokeLater(() -> {
-            if (reply.isSuccess()) {
-               transcript.append(userLine)
-                  .append("RuneGPT (").append(reply.getProvider().getDisplayName()).append("): ")
-                  .append(reply.getText()).append("\n\n");
-               panelArea.setText(transcript.toString());
-            } else {
-               // Failed prompts aren't kept in the conversation; put the text back so the player can retry.
-               panelArea.setText(transcript + userLine + reply.getText());
-               queryField.setText(query);
-            }
-            panelArea.setCaretPosition(panelArea.getDocument().getLength());
-            submitBtn.setEnabled(true);
-            clearBtn.setEnabled(true);
+      clientThread.invokeLater(() -> {
+         final PlayerSnapshot snapshot = PlayerSnapshot.capture(client);
+         llmExecutor.execute(() -> {
+            final GPTClient.Reply reply = gptClient.ask(prompt, snapshot.toContext());
+            SwingUtilities.invokeLater(() -> {
+               if (reply.isSuccess()) {
+                  chatView.addAssistantMessage(reply.getProvider().getDisplayName(), reply.getText());
+               } else {
+                  chatView.addErrorMessage(reply.getText());
+               }
+               chatView.focusInput();
+            });
          });
       });
    }
 
-   private void onClear(final ActionEvent e) {
-      gptClient.clearConversation();
-      transcript.setLength(0);
-      panelArea.setText("");
+   public void shutdown() {
+      llmExecutor.shutdownNow();
    }
 }

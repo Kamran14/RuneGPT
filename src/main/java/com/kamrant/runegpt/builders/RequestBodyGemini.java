@@ -54,7 +54,7 @@ public class RequestBodyGemini{
       @SerializedName("topP")
       private final double topP = 0.95;
       @SerializedName("maxOutputTokens")
-      private final int maxOutputTokens = 1000;
+      private final int maxOutputTokens = 2048;
       @SerializedName("responseMimeType")
       private final String responseMimeType = "text/plain";
 
