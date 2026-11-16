@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import com.kamrant.runegpt.model.QuestMatch;
 import net.runelite.api.Quest;
 
 /**
@@ -19,31 +20,11 @@ public final class QuestResolver {
    private QuestResolver() {
    }
 
-   public static final class Result {
-      private final String questName;
-      private final List<String> suggestions;
-
-      private Result(final String questName, final List<String> suggestions) {
-         this.questName = questName;
-         this.suggestions = suggestions;
-      }
-
-      /** Exact quest name, or null if the input isn't a quest. */
-      public String getQuestName() {
-         return questName;
-      }
-
-      /** Closest real quest names when there's no exact match. */
-      public List<String> getSuggestions() {
-         return suggestions;
-      }
-   }
-
-   public static Result resolve(final String input) {
+   public static QuestMatch resolve(final String input) {
       final String norm = normalize(input);
       for (final Quest quest : Quest.values()) {
          if (normalize(quest.getName()).equals(norm)) {
-            return new Result(quest.getName(), Collections.emptyList());
+            return new QuestMatch(quest.getName(), Collections.emptyList());
          }
       }
 
@@ -59,7 +40,7 @@ public final class QuestResolver {
       for (int i = 0; i < scored.size() && i < 3; i++) {
          suggestions.add((String) scored.get(i)[0]);
       }
-      return new Result(null, suggestions);
+      return new QuestMatch(null, suggestions);
    }
 
    static String normalize(final String s) {

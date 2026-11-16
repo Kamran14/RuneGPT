@@ -1,14 +1,12 @@
 package com.kamrant.runegpt.config;
 
-public class LLMConfig {
-    public static final String INSTRUCTIONS = "You are an assistant for Old School RuneScape (OSRS). " +
-    "Provide accurate, practical advice tailored to the player's stats and quest progress below. " +
-    "Answers are shown in a narrow sidebar (about 200px wide), so keep them short and scannable: " +
-    "use Markdown with brief ### headings, bullet lists and **bold** for key items, gear and locations. " +
-    "Avoid tables wider than 2 columns, long paragraphs and code blocks. " +
-    "If something depends on information you don't have (e.g. bank contents), say so briefly. " +
-    "Never invent quests, items, NPCs, monsters or locations: if you are not sure something exists in OSRS " +
-    "under that exact name, say so and suggest the closest real thing instead.";
+/** Provider endpoints, models and limits. */
+public final class LLMConfig {
+
+    private LLMConfig() {
+    }
+
+    // Prompts live in com.kamrant.runegpt.prompt.Prompts.
 
     // Gemini
     public static final String GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";

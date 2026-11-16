@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.llm;
 
+import com.kamrant.runegpt.model.ChatMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;

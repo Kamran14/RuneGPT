@@ -1,21 +1,20 @@
-package com.kamrant.runegpt.panels;
+package com.kamrant.runegpt.ui;
 
 import com.kamrant.runegpt.RuneGPT;
 import com.kamrant.runegpt.guides.GuideStore;
-import com.kamrant.runegpt.handler.GPTClient;
+import com.kamrant.runegpt.llm.GPTClient;
+import com.kamrant.runegpt.model.AssistantResponse;
+import com.kamrant.runegpt.model.GuidePlan;
+import com.kamrant.runegpt.model.ProviderStatus;
+import com.kamrant.runegpt.model.QuestStep;
 import com.kamrant.runegpt.quest.QuestAssistant;
-import com.kamrant.runegpt.quest.QuestHighlighter;
-import com.kamrant.runegpt.quest.QuestStep;
+import com.kamrant.runegpt.service.AssistantService;
 import com.kamrant.runegpt.service.BankCache;
+import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.PlayerSnapshot;
-import com.kamrant.runegpt.ui.ChatView;
-import com.kamrant.runegpt.ui.GuidesView;
-import com.kamrant.runegpt.ui.QuestStepCard;
-import com.kamrant.runegpt.ui.RoundedPanel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.util.Collections;
 import java.util.Map;
@@ -25,11 +24,12 @@ import java.util.function.Consumer;
 import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
 import lombok.extern.slf4j.Slf4j;
@@ -42,8 +42,8 @@ import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
 /**
- * Sidebar "AI Hub": header with connection status, the chat on top and collapsible guide sections
- * below, separated by a draggable divider so the player can give either side more room.
+ * Sidebar "AI Hub": header with connection status, the tracked guide (when one is active), then the chat
+ * and the collapsible guide sections separated by a draggable divider.
  */
 @Slf4j
 public class GPTPanel extends PluginPanel {
@@ -57,11 +57,13 @@ public class GPTPanel extends PluginPanel {
    private final ItemManager itemManager;
    private final BankCache bankCache;
    private final GPTClient gptClient;
+   private final AssistantService assistant;
    private final QuestAssistant questAssistant;
-   private final QuestHighlighter highlighter;
+   private final GuideTracker tracker;
 
    private final GuidesView guidesView;
    private final ChatView chatView;
+   private final TrackedGuideView trackedView;
    private final JLabel status = new JLabel();
 
    // LLM and wiki calls can take a while (and fail over across providers), so keep them off
@@ -72,18 +74,36 @@ public class GPTPanel extends PluginPanel {
       return t;
    });
 
+   private final QuestStepActions actions = new QuestStepActions() {
+      @Override
+      public void track(final GuidePlan plan) {
+         startTracking(plan);
+      }
+
+      @Override
+      public void nextStep(final String quest, final String completedStep) {
+         questStep(quest, null, completedStep);
+      }
+
+      @Override
+      public void useQuest(final String quest) {
+         questStep(quest, null, null);
+      }
+   };
+
    @Inject
    public GPTPanel(final Client client, final ClientThread clientThread, final ItemManager itemManager,
-      final BankCache bankCache, final GPTClient gptClient, final GuideStore guideStore,
-      final QuestAssistant questAssistant, final QuestHighlighter highlighter) {
+      final BankCache bankCache, final GPTClient gptClient, final AssistantService assistant,
+      final GuideStore guideStore, final QuestAssistant questAssistant, final GuideTracker tracker) {
       super(false);
       this.client = client;
       this.clientThread = clientThread;
       this.itemManager = itemManager;
       this.bankCache = bankCache;
       this.gptClient = gptClient;
+      this.assistant = assistant;
       this.questAssistant = questAssistant;
-      this.highlighter = highlighter;
+      this.tracker = tracker;
 
       setLayout(new BorderLayout());
       setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -92,11 +112,21 @@ public class GPTPanel extends PluginPanel {
       guidesView = new GuidesView(guideStore, this::ask, (quest, picks) -> questStep(quest, picks, null),
          this::questRequirements);
       chatView = new ChatView(text -> ask(text, text), gptClient::clearConversation);
+      trackedView = new TrackedGuideView(tracker::stop);
+      tracker.addListener(plan -> SwingUtilities.invokeLater(() -> trackedView.setPlan(plan)));
 
-      add(header(), BorderLayout.NORTH);
+      final JPanel north = new JPanel(new BorderLayout());
+      north.setOpaque(false);
+      north.add(header(), BorderLayout.NORTH);
+      final JPanel trackedWrap = new JPanel(new BorderLayout());
+      trackedWrap.setOpaque(false);
+      trackedWrap.setBorder(new EmptyBorder(0, 0, 6, 0));
+      trackedWrap.add(trackedView, BorderLayout.CENTER);
+      north.add(trackedWrap, BorderLayout.SOUTH);
+      add(north, BorderLayout.NORTH);
 
       // Sections scroll on their own, below the chat.
-      final SectionsList sectionsList = new SectionsList();
+      final ViewportWidthPanel sectionsList = new ViewportWidthPanel();
       sectionsList.setLayout(new BorderLayout());
       sectionsList.setOpaque(false);
       sectionsList.add(guidesView, BorderLayout.NORTH);
@@ -121,7 +151,6 @@ public class GPTPanel extends PluginPanel {
       split.setOneTouchExpandable(true);
       split.setBorder(BorderFactory.createEmptyBorder());
       split.setOpaque(false);
-      split.setToolTipText("Drag to resize the chat");
       add(split, BorderLayout.CENTER);
 
       updateStatus();
@@ -153,7 +182,7 @@ public class GPTPanel extends PluginPanel {
    }
 
    private void updateStatus() {
-      final GPTClient.Status s = gptClient.status();
+      final ProviderStatus s = gptClient.status();
       status.setText("● " + s.getText());
       switch (s.getState()) {
          case CONNECTED:
@@ -195,17 +224,37 @@ public class GPTPanel extends PluginPanel {
       chatView.addUserMessage(display);
       chatView.showThinking("Thinking");
       withSnapshot(snapshot -> {
-         final GPTClient.Reply reply = gptClient.ask(prompt, snapshot.toContext());
+         final AssistantResponse response = assistant.ask(prompt, snapshot);
          SwingUtilities.invokeLater(() -> {
-            if (reply.isSuccess()) {
-               chatView.addAssistantMessage(reply.getProvider().getDisplayName(), reply.getText());
-            } else {
-               chatView.addErrorMessage(reply.getText());
-            }
-            updateStatus();
+            showResponse(response, "");
             chatView.focusInput();
          });
       });
+   }
+
+   private void showResponse(final AssistantResponse response, final String providerSuffix) {
+      if (!response.isSuccess()) {
+         chatView.addErrorMessage(response.getAnswer());
+      } else {
+         chatView.addAssistantMessage(response.getProvider() + providerSuffix, response.getAnswer(),
+            guideComponent(response.getGuide()));
+      }
+      updateStatus();
+   }
+
+   /** The guide checklist with a Track button, or null when the reply has nothing to track. */
+   private JComponent guideComponent(final GuidePlan guide) {
+      if (guide == null) {
+         return null;
+      }
+      final JButton track = GuidesView.pillButton("Track guide");
+      track.setToolTipText("Live checklist, in-game overlay, map marker and highlights");
+      track.addActionListener(e -> startTracking(guide));
+      return GuidePlanView.build(guide, true, track);
+   }
+
+   private void startTracking(final GuidePlan plan) {
+      tracker.start(plan);
    }
 
    /** Quest step assistant: wiki-grounded "where am I and what's next" for one quest. */
@@ -216,7 +265,7 @@ public class GPTPanel extends PluginPanel {
          final QuestStep step = questAssistant.nextStep(quest, picks == null ? Collections.emptyMap() : picks,
             snapshot, completedStep);
          SwingUtilities.invokeLater(() -> {
-            chatView.addCardMessage(QuestStepCard.header(step), QuestStepCard.build(step, questActions));
+            chatView.addCardMessage(QuestStepCard.header(step), QuestStepCard.build(step, actions));
             updateStatus();
          });
       });
@@ -230,67 +279,15 @@ public class GPTPanel extends PluginPanel {
          final QuestStep notAQuest = questAssistant.checkQuest(quest);
          if (notAQuest != null) {
             SwingUtilities.invokeLater(() ->
-               chatView.addCardMessage(QuestStepCard.header(notAQuest), QuestStepCard.build(notAQuest, questActions)));
+               chatView.addCardMessage(QuestStepCard.header(notAQuest), QuestStepCard.build(notAQuest, actions)));
             return;
          }
-         final GPTClient.Reply reply = gptClient.ask(questAssistant.withWikiRequirements(quest, prompt), snapshot.toContext());
-         SwingUtilities.invokeLater(() -> {
-            if (reply.isSuccess()) {
-               chatView.addAssistantMessage(reply.getProvider().getDisplayName() + "  ·  OSRS Wiki", reply.getText());
-            } else {
-               chatView.addErrorMessage(reply.getText());
-            }
-            updateStatus();
-         });
+         final AssistantResponse response = assistant.ask(questAssistant.withWikiRequirements(quest, prompt), snapshot);
+         SwingUtilities.invokeLater(() -> showResponse(response, "  ·  OSRS Wiki"));
       });
    }
 
-   private final QuestStepCard.Actions questActions = new QuestStepCard.Actions() {
-      @Override
-      public void highlight(final String quest, final String npc) {
-         highlighter.setTarget(quest, npc);
-      }
-
-      @Override
-      public void nextStep(final String quest, final String completedStep) {
-         questStep(quest, null, completedStep);
-      }
-
-      @Override
-      public void useQuest(final String quest) {
-         questStep(quest, null, null);
-      }
-   };
-
    public void shutdown() {
       worker.shutdownNow();
-   }
-
-   /** Tracks viewport width so sections never overflow sideways. */
-   private static final class SectionsList extends JPanel implements Scrollable {
-      @Override
-      public Dimension getPreferredScrollableViewportSize() {
-         return getPreferredSize();
-      }
-
-      @Override
-      public int getScrollableUnitIncrement(final Rectangle r, final int o, final int d) {
-         return 16;
-      }
-
-      @Override
-      public int getScrollableBlockIncrement(final Rectangle r, final int o, final int d) {
-         return r.height;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportWidth() {
-         return true;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportHeight() {
-         return false;
-      }
    }
 }

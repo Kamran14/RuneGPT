@@ -1,5 +1,8 @@
 package com.kamrant.runegpt.llm;
 
+import com.kamrant.runegpt.model.ChatMessage;
+import com.kamrant.runegpt.model.ChatRole;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -18,14 +21,14 @@ public class ConversationHistory {
    /** Messages so far plus the pending user prompt, ready to send to a provider. */
    public synchronized List<ChatMessage> withPendingPrompt(final String prompt) {
       final List<ChatMessage> out = new ArrayList<>(messages);
-      out.add(new ChatMessage(ChatMessage.Role.USER, prompt));
+      out.add(new ChatMessage(ChatRole.USER, prompt));
       return Collections.unmodifiableList(out);
    }
 
    /** Record a completed exchange. Only called once a provider has answered. */
    public synchronized void addExchange(final String prompt, final String reply) {
-      messages.add(new ChatMessage(ChatMessage.Role.USER, prompt));
-      messages.add(new ChatMessage(ChatMessage.Role.ASSISTANT, reply));
+      messages.add(new ChatMessage(ChatRole.USER, prompt));
+      messages.add(new ChatMessage(ChatRole.ASSISTANT, reply));
       // Trim whole exchanges from the front so history always starts with a user turn.
       while (messages.size() > MAX_MESSAGES) {
          messages.remove(0);

@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.guides;
 
+import com.kamrant.runegpt.prompt.Prompts;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -61,7 +62,7 @@ public final class Guide {
             prefs.add(option.getLabel() + ": " + pick);
          }
       }
-      return prefs.isEmpty() ? prompt() : prompt() + "\n\nMy preferences: " + String.join("; ", prefs) + ".";
+      return prefs.isEmpty() ? prompt() : prompt() + String.format(Prompts.PREFERENCES, String.join("; ", prefs));
    }
 
    public String getId() {

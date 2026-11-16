@@ -1,12 +1,13 @@
 package com.kamrant.runegpt.llm;
 
+import com.kamrant.runegpt.model.ChatMessage;
 import static net.runelite.http.api.RuneLiteAPI.JSON;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.kamrant.runegpt.RuneGPTConfig;
-import com.kamrant.runegpt.builders.RequestBodyGemini;
+import com.kamrant.runegpt.model.request.GeminiRequest;
 import com.kamrant.runegpt.config.LLMConfig;
 import com.kamrant.runegpt.config.LLMProvider;
 import java.util.List;
@@ -29,7 +30,7 @@ public class GeminiProviderClient implements LLMProviderClient {
    @Override
    public Request buildRequest(final String apiKey, final String system, final List<ChatMessage> history,
       final RuneGPTConfig config, final Gson gson) {
-      final RequestBodyGemini body = RequestBodyGemini.createRequestBody(system, history, config.temperature());
+      final GeminiRequest body = GeminiRequest.create(system, history, config.temperature());
       return new Request.Builder()
          .url(LLMConfig.GEMINI_URL)
          .addHeader("x-goog-api-key", apiKey)

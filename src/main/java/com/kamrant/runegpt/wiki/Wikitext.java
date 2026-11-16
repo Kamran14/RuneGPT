@@ -1,4 +1,4 @@
-package com.kamrant.runegpt.quest;
+package com.kamrant.runegpt.wiki;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;

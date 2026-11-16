@@ -32,21 +32,14 @@ import net.runelite.client.ui.FontManager;
  */
 public final class GuideEditDialog {
 
-   public enum Action {
-      CANCEL,
-      SAVE,
-      SAVE_AND_ASK,
-      RESET
-   }
-
    private GuideEditDialog() {
    }
 
    /** Shows the dialog. On SAVE / SAVE_AND_ASK the guide has been updated in place. */
-   public static Action show(final Component parent, final Guide guide) {
+   public static GuideEditAction show(final Component parent, final Guide guide) {
       final Window owner = SwingUtilities.getWindowAncestor(parent);
       final JDialog dialog = new JDialog(owner, "Edit guide", JDialog.ModalityType.APPLICATION_MODAL);
-      final Action[] result = { Action.CANCEL };
+      final GuideEditAction[] result = { GuideEditAction.CANCEL };
 
       final JPanel form = new JPanel(new GridBagLayout());
       form.setBorder(BorderFactory.createEmptyBorder(12, 12, 6, 12));
@@ -126,18 +119,18 @@ public final class GuideEditDialog {
       final Runnable applyEdits = () -> guide.apply(titleInput.getText().trim(), promptInput.getText().trim(),
          values(fieldInputs));
       reset.addActionListener(e -> {
-         result[0] = Action.RESET;
+         result[0] = GuideEditAction.RESET;
          dialog.dispose();
       });
       cancel.addActionListener(e -> dialog.dispose());
       save.addActionListener(e -> {
          applyEdits.run();
-         result[0] = Action.SAVE;
+         result[0] = GuideEditAction.SAVE;
          dialog.dispose();
       });
       saveAsk.addActionListener(e -> {
          applyEdits.run();
-         result[0] = Action.SAVE_AND_ASK;
+         result[0] = GuideEditAction.SAVE_AND_ASK;
          dialog.dispose();
       });
 

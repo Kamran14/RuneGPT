@@ -1,12 +1,13 @@
 package com.kamrant.runegpt.llm;
 
+import com.kamrant.runegpt.model.ChatMessage;
 import static net.runelite.http.api.RuneLiteAPI.JSON;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.kamrant.runegpt.RuneGPTConfig;
-import com.kamrant.runegpt.builders.RequestBodyGroq;
+import com.kamrant.runegpt.model.request.GroqRequest;
 import com.kamrant.runegpt.config.LLMConfig;
 import com.kamrant.runegpt.config.LLMProvider;
 import java.util.List;
@@ -33,7 +34,7 @@ public class GroqProviderClient implements LLMProviderClient {
       final String model = config.groqModel() == null || config.groqModel().trim().isEmpty()
          ? LLMConfig.GROQ_DEFAULT_MODEL
          : config.groqModel().trim();
-      final RequestBodyGroq body = RequestBodyGroq.createRequestBody(
+      final GroqRequest body = GroqRequest.create(
          model, system, history, config.temperature(), LLMConfig.GROQ_MAX_TOKENS);
       return new Request.Builder()
          .url(LLMConfig.GROQ_URL)

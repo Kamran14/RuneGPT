@@ -4,10 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.util.function.Consumer;
@@ -19,9 +16,7 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
-import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.border.EmptyBorder;
@@ -46,11 +41,11 @@ public class ChatView extends JPanel {
    private static final Color ERROR_BG = new Color(84, 32, 32);
    static final Color TEXT = new Color(220, 220, 220);
 
-   private final MessageList list = new MessageList();
+   private final ViewportWidthPanel list = new ViewportWidthPanel();
    // Rows stack at the top of the list; BorderLayout.NORTH stops BoxLayout stretching them.
    private final JPanel messages = new JPanel();
    private final JScrollPane scroll;
-   private final JTextArea input = new PlaceholderTextArea("Ask about OSRS...");
+   private final PlaceholderTextArea input = new PlaceholderTextArea("Ask about OSRS...");
    private final JScrollPane inputScroll;
    private final JButton send = GuidesView.pillButton("Send");
    private final JButton newChat = GuidesView.pillButton("New chat");
@@ -194,10 +189,29 @@ public class ChatView extends JPanel {
    }
 
    public void addAssistantMessage(final String providerName, final String markdown) {
+      addAssistantMessage(providerName, markdown, null);
+   }
+
+   /** Answer text, optionally followed by a component (e.g. the guide checklist with Track button). */
+   public void addAssistantMessage(final String providerName, final String markdown, final JComponent extra) {
       removeThinking();
       final HtmlPane pane = new HtmlPane(TEXT);
       pane.setHtml(MarkdownRenderer.toHtml(markdown));
-      addRow(bubble("RuneGPT  ·  " + providerName, pane, ASSISTANT_BG), 0);
+      final JComponent body;
+      if (extra == null) {
+         body = pane;
+      } else {
+         final JPanel col = new JPanel();
+         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
+         col.setOpaque(false);
+         pane.setAlignmentX(Component.LEFT_ALIGNMENT);
+         extra.setAlignmentX(Component.LEFT_ALIGNMENT);
+         col.add(pane);
+         col.add(Box.createVerticalStrut(6));
+         col.add(extra);
+         body = col;
+      }
+      addRow(bubble("RuneGPT  ·  " + providerName, body, ASSISTANT_BG), 0);
    }
 
    /** A custom card (e.g. a quest step) in place of a plain text answer. */
@@ -309,55 +323,5 @@ public class ChatView extends JPanel {
       p.add(Box.createVerticalStrut(4));
       p.add(body);
       return p;
-   }
-
-   /** Tracks the viewport width so rows never overflow horizontally. */
-   private static final class MessageList extends JPanel implements Scrollable {
-      @Override
-      public Dimension getPreferredScrollableViewportSize() {
-         return getPreferredSize();
-      }
-
-      @Override
-      public int getScrollableUnitIncrement(final Rectangle visibleRect, final int orientation, final int direction) {
-         return 16;
-      }
-
-      @Override
-      public int getScrollableBlockIncrement(final Rectangle visibleRect, final int orientation, final int direction) {
-         return visibleRect.height;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportWidth() {
-         return true;
-      }
-
-      @Override
-      public boolean getScrollableTracksViewportHeight() {
-         return false;
-      }
-   }
-
-   /** Text area that shows a grey hint while empty. */
-   private static final class PlaceholderTextArea extends JTextArea {
-      private final String placeholder;
-
-      PlaceholderTextArea(final String placeholder) {
-         this.placeholder = placeholder;
-      }
-
-      @Override
-      protected void paintComponent(final Graphics g) {
-         super.paintComponent(g);
-         if (getDocument().getLength() == 0) {
-            final Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-            g2.setColor(ColorScheme.MEDIUM_GRAY_COLOR);
-            g2.setFont(getFont());
-            g2.drawString(placeholder, getInsets().left, getInsets().top + g2.getFontMetrics().getAscent());
-            g2.dispose();
-         }
-      }
    }
 }

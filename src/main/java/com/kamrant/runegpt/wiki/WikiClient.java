@@ -1,4 +1,4 @@
-package com.kamrant.runegpt.quest;
+package com.kamrant.runegpt.wiki;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;

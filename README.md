@@ -62,6 +62,11 @@ Why?
     - **Edit guide** lets you change its details (e.g. the monster or kill count) or rewrite the whole question. Edits are saved; **Reset to default** undoes them.
     - **Something else?** at the bottom of each section lets you type your own interest.
 - **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next step, and a checklist of required items marked against your inventory, worn items and bank (open your bank once per session so it can be checked). **Highlight** puts an arrow, outline and a line to the NPC in-game when they're nearby. Anything the AI suggests that the wiki guide doesn't mention is hidden.
+- **Track guide**: answers that describe an activity (a boss, monster, skill method, quest step...) come with a checklist of gear to wear and items to bring, plus where to go. Press **Track guide** to pin it:
+    - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank.
+    - An in-game overlay shows the same checklist with distance and direction to the target (toggle it with *Show guide checklist in game*).
+    - The target gets a world map marker (orange = OSRS Wiki coordinates, grey = AI estimate), plus a hint arrow, outline and line to the NPC or spot when you're nearby.
+    - Every item, NPC and place is checked against the OSRS Wiki first; anything that doesn't exist is dropped.
 - Answers are formatted for the narrow sidebar: wide tables become stacked lists and stray HTML is stripped.
 - Or just type a question like:
     - "What’s the best setup for Barrows with my stats?"

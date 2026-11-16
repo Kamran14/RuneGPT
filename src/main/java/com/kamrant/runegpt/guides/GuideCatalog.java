@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.guides;
 
+import com.kamrant.runegpt.prompt.Prompts;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,10 +12,16 @@ import net.runelite.api.Skill;
 /**
  * Default recommended guides per category. Defaults adapt to the player's snapshot
  * (combat level, lowest skill, quests in progress); the player can edit any of them.
+ * Titles and prompts come from {@link Prompts}.
  */
 public final class GuideCatalog {
 
+   /** Guides whose id starts with this open the wiki-grounded quest step assistant. */
+   public static final String QUEST_STEP_PREFIX = "quest-continue-";
+   public static final String QUEST_REQUIREMENTS_ID = "quest-requirements";
+
    private static final int MAX_CONTINUE_QUESTS = 3;
+   private static final GuideOption QUEST_DETAIL = new GuideOption("Detail", "Quick steps", "Full walkthrough");
 
    private GuideCatalog() {
    }
@@ -28,105 +35,78 @@ public final class GuideCatalog {
                if (shown++ >= MAX_CONTINUE_QUESTS) {
                   break;
                }
-               out.add(new Guide("quest-continue-" + slug(quest), category, "Continue {quest}",
-                  "Help me continue the quest {quest}. I'm not sure exactly where I left off, so list the main "
-                     + "checkpoints in order so I can find my place, then the remaining steps, the items to bring, "
-                     + "and any tricky fights or puzzles.",
-                  fields("quest", quest)).withOptions(new GuideOption("Detail", "Quick steps", "Full walkthrough")));
+               out.add(new Guide(QUEST_STEP_PREFIX + slug(quest), category, Prompts.QUEST_CONTINUE_TITLE,
+                  Prompts.QUEST_CONTINUE, fields("quest", quest)).withOptions(QUEST_DETAIL));
             }
-            out.add(new Guide("quest-continue-custom", category, "Quest helper: {quest}",
-               "Help me with the quest {quest}: where I am in it, the next step and the items I need.",
-               fields("quest", "Cook's Assistant"))
-               .withOptions(new GuideOption("Detail", "Quick steps", "Full walkthrough")));
-            out.add(new Guide("quest-next", category, "Which {count} quests next?",
-               "Based on my stats and quest progress, recommend the next {count} quests I should do, in order. "
-                  + "For each, say why it's worth doing (rewards or unlocks) and confirm I meet the requirements.",
+            out.add(new Guide(QUEST_STEP_PREFIX + "custom", category, Prompts.QUEST_HELPER_TITLE,
+               Prompts.QUEST_HELPER, fields("quest", "Cook's Assistant")).withOptions(QUEST_DETAIL));
+            out.add(new Guide("quest-next", category, Prompts.QUEST_NEXT_TITLE, Prompts.QUEST_NEXT,
                fields("count", "3")).withOptions(new GuideOption("Focus", "Unlocks", "XP rewards", "Easiest first")));
-            out.add(new Guide("quest-requirements", category, "Requirements for {quest}",
-               "What do I still need before I can start {quest}? Check my stats and list missing skill levels and "
-                  + "prerequisite quests, with the quickest way to get each.",
-               fields("quest", "Recipe for Disaster")));
+            out.add(new Guide(QUEST_REQUIREMENTS_ID, category, Prompts.QUEST_REQUIREMENTS_TITLE,
+               Prompts.QUEST_REQUIREMENTS, fields("quest", "Recipe for Disaster")));
             break;
 
          case MONSTERS:
-            out.add(new Guide("monster-kill", category, "Kill {count} {monster}",
-               "I want to kill {count} {monster}. Tell me the best location, the gear and inventory to bring for "
-                  + "my stats, roughly how long it will take, and which drops to look out for.",
+            out.add(new Guide("monster-kill", category, Prompts.MONSTER_KILL_TITLE, Prompts.MONSTER_KILL,
                fields("count", "200", "monster", killTarget(p.getCombatLevel())))
                .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));
-            out.add(new Guide("monster-slayer-task", category, "Slayer task: {count} {monster}",
-               "My Slayer task is {count} {monster}. Where should I kill them, what gear and inventory should I "
-                  + "bring, and is it worth doing, skipping or blocking at my level?",
+            out.add(new Guide("monster-slayer-task", category, Prompts.MONSTER_SLAYER_TITLE, Prompts.MONSTER_SLAYER,
                fields("count", "150", "monster", "fire giants"))
                .withOptions(GuideOption.ATTACK_STYLE, new GuideOption("Goal", "Fast", "AFK", "Profit")));
-            out.add(new Guide("monster-train", category, "Best combat training spot",
-               "Where should I train combat right now for good XP per hour? Look at my combat stats and suggest "
-                  + "which stat to train first.",
+            out.add(new Guide("monster-train", category, Prompts.MONSTER_TRAIN_TITLE, Prompts.MONSTER_TRAIN,
                fields()).withOptions(GuideOption.ATTACK_STYLE, new GuideOption("Goal", "Fast XP", "AFK", "Profit")));
             break;
 
          case BOSSES:
-            out.add(new Guide("boss-ready", category, "Am I ready for {boss}?",
-               "Am I ready to fight {boss}? Check my stats against what's recommended, suggest gear and inventory, "
-                  + "explain the key mechanics, and estimate kills per hour.",
+            out.add(new Guide("boss-ready", category, Prompts.BOSS_READY_TITLE, Prompts.BOSS_READY,
                fields("boss", bossTarget(p.getCombatLevel())))
                .withOptions(GuideOption.ATTACK_STYLE, GuideOption.BUDGET));
-            out.add(new Guide("boss-suggest", category, "Bosses for my level",
-               "Which bosses suit my stats best right now? Give me {count} options, with what each is good for "
-                  + "(profit, unlocks or pets) and what I need before trying.",
+            out.add(new Guide("boss-suggest", category, Prompts.BOSS_SUGGEST_TITLE, Prompts.BOSS_SUGGEST,
                fields("count", "3")).withOptions(new GuideOption("Goal", "Profit", "Unlocks", "Pets")));
             break;
 
          case SKILLING:
             final Skill lowest = p.lowestSkill();
             final int lowLevel = lowest == null ? 1 : p.level(lowest);
-            out.add(new Guide("skill-train", category, "Train {skill} to {target}",
-               "What's the fastest way to train {skill} from my current level to {target}? Compare a fast or "
-                  + "expensive method with a cheap or AFK one, with XP per hour and costs.",
+            out.add(new Guide("skill-train", category, Prompts.SKILL_TRAIN_TITLE, Prompts.SKILL_TRAIN,
                fields("skill", lowest == null ? "Agility" : lowest.getName(),
                   "target", String.valueOf(nextMilestone(lowLevel))))
                .withOptions(GuideOption.PACE));
             final Skill top = p.highestUnmaxedSkill();
-            out.add(new Guide("skill-99", category, "Plan 99 {skill}",
-               "Plan my route to 99 {skill} from my current level: methods per level range, total time and "
-                  + "cost, and any quests or unlocks that speed it up.",
+            out.add(new Guide("skill-99", category, Prompts.SKILL_99_TITLE, Prompts.SKILL_99,
                fields("skill", top == null ? "Woodcutting" : top.getName())).withOptions(GuideOption.PACE));
-            out.add(new Guide("skill-quest-xp", category, "Quests with {skill} XP",
-               "Which quests give XP rewards in {skill} that I could use to skip early levels?",
+            out.add(new Guide("skill-quest-xp", category, Prompts.SKILL_QUEST_XP_TITLE, Prompts.SKILL_QUEST_XP,
                fields("skill", lowest == null ? "Agility" : lowest.getName())));
             break;
 
          case MONEY:
-            out.add(new Guide("money-best", category, "Top {count} money makers",
-               "Give me the {count} best money making methods for my current stats, with estimated GP per hour, "
-                  + "requirements and how active each one is.",
+            out.add(new Guide("money-best", category, Prompts.MONEY_BEST_TITLE, Prompts.MONEY_BEST,
                fields("count", "5")).withOptions(new GuideOption("Style", "Active", "AFK"),
                new GuideOption("Type", "Combat", "Skilling", "Either")));
-            out.add(new Guide("money-skill", category, "Make money with {skill}",
-               "What are the best ways to make money using {skill} at my level? Include GP per hour and startup cost.",
-               fields("skill", p.highestUnmaxedSkill() == null ? "Fishing" : p.highestUnmaxedSkill().getName()))
-               .withOptions(new GuideOption("Style", "Active", "AFK")));
-            out.add(new Guide("money-afk", category, "AFK money making",
-               "What are the best low-attention (AFK) money making methods for my stats? Include GP per hour.",
+            out.add(new Guide("money-skill", category, Prompts.MONEY_SKILL_TITLE, Prompts.MONEY_SKILL,
+               fields("skill", top(p, "Fishing"))).withOptions(new GuideOption("Style", "Active", "AFK")));
+            out.add(new Guide("money-afk", category, Prompts.MONEY_AFK_TITLE, Prompts.MONEY_AFK,
                fields()).withOptions(new GuideOption("Type", "Combat", "Skilling", "Either")));
             break;
 
          case MINIGAMES:
-            out.add(new Guide("minigame-worth", category, "Minigames worth doing",
-               "Which minigames are worth doing for my account right now, and what rewards should I aim for in each?",
+            out.add(new Guide("minigame-worth", category, Prompts.MINIGAME_WORTH_TITLE, Prompts.MINIGAME_WORTH,
                fields()).withOptions(new GuideOption("Goal", "XP", "Rewards", "Fun")));
-            out.add(new Guide("minigame-guide", category, "Guide to {minigame}",
-               "Give me a guide to {minigame}: requirements, how it works, the best strategy, and which rewards to "
-                  + "buy first.",
+            out.add(new Guide("minigame-guide", category, Prompts.MINIGAME_GUIDE_TITLE, Prompts.MINIGAME_GUIDE,
                fields("minigame", p.level(Skill.RUNECRAFT) >= 27 ? "Guardians of the Rift" : "Pest Control")));
             break;
       }
       return out;
    }
 
-   /** Prompt used for the per-category "Other" box. */
+   /** Prompt used for the per-category "Something else?" box. */
    public static String otherPrompt(final GuideCategory category, final String interest) {
-      return "About " + category.getFullName().toLowerCase() + ": " + interest;
+      return String.format(Prompts.OTHER_INTEREST, category.getFullName().toLowerCase(), interest);
+   }
+
+   private static String top(final PlayerSnapshot p, final String fallback) {
+      final Skill s = p.highestUnmaxedSkill();
+      return s == null ? fallback : s.getName();
    }
 
    private static String killTarget(final int combat) {

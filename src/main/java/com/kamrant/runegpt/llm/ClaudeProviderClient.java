@@ -1,11 +1,12 @@
 package com.kamrant.runegpt.llm;
 
+import com.kamrant.runegpt.model.ChatMessage;
 import static net.runelite.http.api.RuneLiteAPI.JSON;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.kamrant.runegpt.RuneGPTConfig;
-import com.kamrant.runegpt.builders.RequestBodyClaude;
+import com.kamrant.runegpt.model.request.ClaudeRequest;
 import com.kamrant.runegpt.config.LLMConfig;
 import com.kamrant.runegpt.config.LLMProvider;
 import java.time.Duration;
@@ -38,7 +39,7 @@ public class ClaudeProviderClient implements LLMProviderClient {
       final String model = config.claudeModel() == null || config.claudeModel().trim().isEmpty()
          ? LLMConfig.CLAUDE_DEFAULT_MODEL
          : config.claudeModel().trim();
-      final RequestBodyClaude body = RequestBodyClaude.createRequestBody(
+      final ClaudeRequest body = ClaudeRequest.create(
          model, system, history, LLMConfig.CLAUDE_MAX_TOKENS);
 
       final Request.Builder builder = new Request.Builder()
@@ -46,7 +47,7 @@ public class ClaudeProviderClient implements LLMProviderClient {
          .addHeader("x-api-key", apiKey)
          .addHeader("anthropic-version", LLMConfig.CLAUDE_API_VERSION)
          .post(RequestBody.create(JSON, gson.toJson(body)));
-      if (RequestBodyClaude.supportsFallbacks(model)) {
+      if (ClaudeRequest.supportsFallbacks(model)) {
          builder.addHeader("anthropic-beta", LLMConfig.CLAUDE_FALLBACK_BETA);
       }
       return builder.build();

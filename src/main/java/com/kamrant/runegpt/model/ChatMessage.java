@@ -1,4 +1,4 @@
-package com.kamrant.runegpt.llm;
+package com.kamrant.runegpt.model;
 
 /**
  * One turn of the conversation, stored in a provider-neutral form so the same
@@ -6,20 +6,15 @@ package com.kamrant.runegpt.llm;
  */
 public final class ChatMessage {
 
-   public enum Role {
-      USER,
-      ASSISTANT
-   }
-
-   private final Role role;
+   private final ChatRole role;
    private final String text;
 
-   public ChatMessage(final Role role, final String text) {
+   public ChatMessage(final ChatRole role, final String text) {
       this.role = role;
       this.text = text;
    }
 
-   public Role getRole() {
+   public ChatRole getRole() {
       return role;
    }
 

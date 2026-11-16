@@ -257,6 +257,11 @@ public final class MarkdownRenderer {
    }
 
    /** Inline formatting. Code spans are pulled out first so nothing inside them is formatted. */
+   /** Inline Markdown (bold, italics, code, links) to HTML, for single lines like guide steps. */
+   public static String inlineHtml(final String text) {
+      return inline(text);
+   }
+
    static String inline(final String text) {
       final List<String> codeSpans = new ArrayList<>();
       final Matcher code = INLINE_CODE.matcher(text);

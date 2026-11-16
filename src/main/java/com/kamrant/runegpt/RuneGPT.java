@@ -2,10 +2,14 @@ package com.kamrant.runegpt;
 
 import com.google.inject.Injector;
 import com.google.inject.Provides;
-import com.kamrant.runegpt.panels.GPTPanel;
-import com.kamrant.runegpt.quest.QuestHighlightOverlay;
-import com.kamrant.runegpt.quest.QuestHighlighter;
+import com.kamrant.runegpt.overlay.GuideChecklistOverlay;
+import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
 import com.kamrant.runegpt.service.BankCache;
+import com.kamrant.runegpt.service.GuideTracker;
+import com.kamrant.runegpt.service.GuideVerifier;
+import com.kamrant.runegpt.service.PlayerSnapshot;
+import com.kamrant.runegpt.service.TargetHighlighter;
+import com.kamrant.runegpt.ui.GPTPanel;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +30,9 @@ import net.runelite.client.util.ImageUtil;
 @Slf4j
 @PluginDescriptor(name = "RuneGPT")
 public class RuneGPT extends Plugin {
-	// gameval InventoryID.BANK
+	/** gameval InventoryID.BANK. */
 	private static final int BANK_CONTAINER = 95;
+	public static final String LOGO = "logo.png";
 
 	@Inject
 	private ClientToolbar clientToolbar;
@@ -45,14 +50,22 @@ public class RuneGPT extends Plugin {
 	private BankCache bankCache;
 
 	@Inject
-	private QuestHighlighter questHighlighter;
+	private TargetHighlighter targetHighlighter;
 
 	@Inject
-	private QuestHighlightOverlay questHighlightOverlay;
+	private GuideTracker guideTracker;
+
+	@Inject
+	private GuideVerifier guideVerifier;
+
+	@Inject
+	private TargetHighlightOverlay targetHighlightOverlay;
+
+	@Inject
+	private GuideChecklistOverlay guideChecklistOverlay;
 
 	private NavigationButton navButton;
 	private GPTPanel gptPanel;
-	public static final String LOGO = "logo.png";
 
 	@Override
 	protected void startUp() throws Exception {
@@ -65,15 +78,21 @@ public class RuneGPT extends Plugin {
 				.build();
 
 		clientToolbar.addNavigation(navButton);
-		overlayManager.add(questHighlightOverlay);
+		overlayManager.add(targetHighlightOverlay);
+		overlayManager.add(guideChecklistOverlay);
 		gptPanel.refreshGuides();
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
 		clientToolbar.removeNavigation(navButton);
-		overlayManager.remove(questHighlightOverlay);
-		clientThread.invokeLater(questHighlighter::shutdown);
+		overlayManager.remove(targetHighlightOverlay);
+		overlayManager.remove(guideChecklistOverlay);
+		clientThread.invokeLater(() -> {
+			guideTracker.shutdown();
+			targetHighlighter.shutdown();
+		});
+		guideVerifier.shutdown();
 		gptPanel.shutdown();
 	}
 
@@ -91,14 +110,19 @@ public class RuneGPT extends Plugin {
 
 	@Subscribe
 	public void onItemContainerChanged(final ItemContainerChanged event) {
-		if (event.getContainerId() == BANK_CONTAINER) {
+		final int id = event.getContainerId();
+		if (id == BANK_CONTAINER) {
 			bankCache.update(event.getItemContainer().getItems());
+		}
+		if (id == BANK_CONTAINER || id == PlayerSnapshot.INVENTORY || id == PlayerSnapshot.EQUIPMENT) {
+			// Live checklist: re-colour the tracked guide's items.
+			guideTracker.onItemsChanged();
 		}
 	}
 
 	@Subscribe
 	public void onGameTick(final GameTick tick) {
-		questHighlighter.onTick();
+		targetHighlighter.onTick();
 	}
 
 	@Provides
@@ -106,7 +130,7 @@ public class RuneGPT extends Plugin {
 		return configManager.getConfig(RuneGPTConfig.class);
 	}
 
-	private BufferedImage getImg(){
-			return ImageUtil.loadImageResource(getClass(), LOGO);
-		}
+	private BufferedImage getImg() {
+		return ImageUtil.loadImageResource(getClass(), LOGO);
+	}
 }

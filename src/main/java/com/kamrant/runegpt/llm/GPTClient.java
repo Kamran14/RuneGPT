@@ -1,21 +1,20 @@
-package com.kamrant.runegpt.handler;
+package com.kamrant.runegpt.llm;
 
 import com.google.gson.Gson;
 import com.google.inject.Singleton;
 import com.kamrant.runegpt.RuneGPTConfig;
-import com.kamrant.runegpt.config.LLMConfig;
 import com.kamrant.runegpt.config.LLMProvider;
-import com.kamrant.runegpt.llm.ChatMessage;
-import com.kamrant.runegpt.llm.ClaudeProviderClient;
-import com.kamrant.runegpt.llm.ConversationHistory;
-import com.kamrant.runegpt.llm.GeminiProviderClient;
-import com.kamrant.runegpt.llm.GroqProviderClient;
-import com.kamrant.runegpt.llm.LLMProviderClient;
-import com.kamrant.runegpt.llm.ProviderException;
+import com.kamrant.runegpt.model.ChatMessage;
+import com.kamrant.runegpt.model.ChatRole;
+import com.kamrant.runegpt.model.LlmReply;
+import com.kamrant.runegpt.model.ProviderStatus;
+import com.kamrant.runegpt.model.ProviderStatusState;
+import com.kamrant.runegpt.prompt.Prompts;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -35,13 +34,9 @@ public class GPTClient {
    // How long to skip a provider after it reports rate limit / quota exhaustion, if it doesn't say.
    private static final Duration DEFAULT_COOLDOWN = Duration.ofMinutes(1);
 
-   @Inject
-   private OkHttpClient httpClient;
-   @Inject
-   private Gson gson;
-
    private final RuneGPTConfig config;
-   private static GPTClient instance;
+   private final OkHttpClient httpClient;
+   private final Gson gson;
 
    // Fixed failover order after the primary provider.
    private final List<LLMProviderClient> providers = Arrays.asList(
@@ -52,80 +47,23 @@ public class GPTClient {
    private volatile LLMProvider lastProvider;
 
    @Inject
-   public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient) {
+   public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient, final Gson gson) {
       this.config = config;
       this.httpClient = httpClient;
+      this.gson = gson;
    }
 
-   public static synchronized GPTClient getInstance(final RuneGPTConfig config, final OkHttpClient httpClient) {
-      if (instance == null) {
-         instance = new GPTClient(config, httpClient);
-      }
-      return instance;
-   }
-
-   /** Result of a prompt: the reply and which provider gave it, or an error after all providers failed. */
-   public static final class Reply {
-      private final boolean success;
-      private final String text;
-      private final LLMProvider provider;
-
-      private Reply(final boolean success, final String text, final LLMProvider provider) {
-         this.success = success;
-         this.text = text;
-         this.provider = provider;
-      }
-
-      public boolean isSuccess() {
-         return success;
-      }
-
-      public String getText() {
-         return text;
-      }
-
-      /** The provider that answered; null on failure. */
-      public LLMProvider getProvider() {
-         return provider;
-      }
-   }
-
-   /** Connection state shown in the panel header. */
-   public enum StatusState {
-      CONNECTED,
-      READY,
-      ERROR
-   }
-
-   public static final class Status {
-      private final StatusState state;
-      private final String text;
-
-      Status(final StatusState state, final String text) {
-         this.state = state;
-         this.text = text;
-      }
-
-      public StatusState getState() {
-         return state;
-      }
-
-      public String getText() {
-         return text;
-      }
-   }
-
-   public Status status() {
+   public ProviderStatus status() {
       final List<LLMProviderClient> candidates = orderedCandidates();
       if (candidates.isEmpty()) {
-         return new Status(StatusState.ERROR, "No API key set");
+         return new ProviderStatus(ProviderStatusState.ERROR, "No API key set");
       }
       final LLMProvider last = lastProvider;
       if (last != null) {
-         return new Status(StatusState.CONNECTED, "Connected (" + last.getDisplayName() + ")");
+         return new ProviderStatus(ProviderStatusState.CONNECTED, "Connected (" + last.getDisplayName() + ")");
       }
       final int backups = candidates.size() - 1;
-      return new Status(StatusState.READY, "Ready (" + candidates.get(0).provider().getDisplayName()
+      return new ProviderStatus(ProviderStatusState.READY, "Ready (" + candidates.get(0).provider().getDisplayName()
          + (backups > 0 ? " + " + backups + " backup" + (backups > 1 ? "s" : "") : "") + ")");
    }
 
@@ -134,30 +72,32 @@ public class GPTClient {
    }
 
    /**
-    * Ask a question. {@code playerContext} (stats etc.) goes in the system prompt and is refreshed on
-    * every call, so it never goes stale in the history.
+    * Ask a question in the ongoing conversation. {@code playerContext} (stats, gear...) goes in the system
+    * prompt and is refreshed on every call, so it never goes stale in the history. The exchange is not
+    * recorded until the caller has parsed the reply: see {@link #remember}.
     */
-   public Reply ask(final String prompt, final String playerContext) {
-      final String system = LLMConfig.INSTRUCTIONS + "\n\nCurrent player data:\n" + playerContext;
-      final Reply reply = send(system, history.withPendingPrompt(prompt));
-      if (reply.isSuccess()) {
-         history.addExchange(prompt, reply.getText());
-      }
-      return reply;
+   public LlmReply ask(final String prompt, final String playerContext) {
+      final String system = Prompts.SYSTEM + Prompts.PLAYER_CONTEXT_HEADER + playerContext;
+      return send(system, history.withPendingPrompt(prompt));
+   }
+
+   /** Records a finished exchange. Store the readable answer, not raw JSON, to keep the history small. */
+   public void remember(final String prompt, final String answer) {
+      history.addExchange(prompt, answer);
    }
 
    /**
     * One-off request with its own system prompt, outside the chat history (e.g. structured quest
     * steps). Same provider failover as {@link #ask}.
     */
-   public Reply completeOnce(final String system, final String prompt) {
-      return send(system, java.util.Collections.singletonList(new ChatMessage(ChatMessage.Role.USER, prompt)));
+   public LlmReply completeOnce(final String system, final String prompt) {
+      return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)));
    }
 
-   private Reply send(final String system, final List<ChatMessage> messages) {
+   private LlmReply send(final String system, final List<ChatMessage> messages) {
       final List<LLMProviderClient> candidates = orderedCandidates();
       if (candidates.isEmpty()) {
-         return new Reply(false, "No API keys set. Add at least one (Gemini, Claude or Groq) in the RuneGPT plugin settings.", null);
+         return LlmReply.failure("No API keys set. Add at least one (Gemini, Claude or Groq) in the RuneGPT plugin settings.");
       }
 
       final List<String> failures = new ArrayList<>();
@@ -167,7 +107,7 @@ public class GPTClient {
             final String reply = client.send(httpClient, gson, system, messages, config);
             clearCooldown(provider);
             lastProvider = provider;
-            return new Reply(true, reply, provider);
+            return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {
             log.warn("RuneGPT: {} failed, trying next provider: {}", provider, e.getMessage());
             failures.add(provider.getDisplayName() + ": " + e.getMessage());
@@ -182,8 +122,8 @@ public class GPTClient {
       }
 
       lastProvider = null;
-      return new Reply(false, "All LLM providers are unavailable right now (out of tokens or erroring). "
-         + "Try again in a bit.\n\n" + String.join("\n", failures), null);
+      return LlmReply.failure("All LLM providers are unavailable right now (out of tokens or erroring). "
+         + "Try again in a bit.\n\n" + String.join("\n", failures));
    }
 
    /**

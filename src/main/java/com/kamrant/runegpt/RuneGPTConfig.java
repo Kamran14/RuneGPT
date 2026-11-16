@@ -84,10 +84,20 @@ public interface RuneGPTConfig extends Config {
 	}
 
 	@ConfigItem(
+		keyName = "showGuideOverlay",
+		name = "Show guide checklist in game",
+		description = "While a guide is tracked, show its item checklist and directions as an in-game overlay",
+		position = 7
+	)
+	default boolean showGuideOverlay() {
+		return true;
+	}
+
+	@ConfigItem(
 		keyName = "enable",
 		name = "Set API Key",
 		description = "Toggle when you have updated your API Key",
-		position = 7
+		position = 8
 	)
 	default boolean enable() {
 		return false;

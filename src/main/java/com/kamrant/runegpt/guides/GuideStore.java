@@ -2,6 +2,7 @@ package com.kamrant.runegpt.guides;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.kamrant.runegpt.model.SavedGuide;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -24,13 +25,6 @@ public class GuideStore {
    private final ConfigManager configManager;
    private final Gson gson;
 
-   /** Saved form of an edited guide. */
-   private static final class Saved {
-      String title;
-      String prompt;
-      LinkedHashMap<String, String> fields;
-   }
-
    @Inject
    public GuideStore(final ConfigManager configManager, final Gson gson) {
       this.configManager = configManager;
@@ -45,7 +39,7 @@ public class GuideStore {
             continue;
          }
          try {
-            final Saved saved = gson.fromJson(json, Saved.class);
+            final SavedGuide saved = gson.fromJson(json, SavedGuide.class);
             if (saved != null && saved.title != null && saved.prompt != null && saved.fields != null) {
                guide.apply(saved.title, saved.prompt, saved.fields);
             }
@@ -57,7 +51,7 @@ public class GuideStore {
    }
 
    public void save(final Guide guide) {
-      final Saved saved = new Saved();
+      final SavedGuide saved = new SavedGuide();
       saved.title = guide.getTitleTemplate();
       saved.prompt = guide.getPromptTemplate();
       saved.fields = new LinkedHashMap<>(guide.getFields());

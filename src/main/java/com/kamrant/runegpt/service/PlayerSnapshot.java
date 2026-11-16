@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.service;
 
+import com.kamrant.runegpt.model.ItemHoldings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -21,78 +22,35 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.game.ItemManager;
 
 /**
- * Immutable snapshot of the player's progress, gear and surroundings. Must be captured on the
- * client thread (quest state lookups run client scripts; item names need the item cache).
+ * Snapshot of the player's progress, gear and surroundings, captured on the client thread (quest
+ * state lookups run client scripts; item names need the item cache). Treat as read-only once captured.
  */
 public final class PlayerSnapshot {
 
-   // Container ids (gameval InventoryID): inventory, worn equipment.
-   private static final int INVENTORY = 93;
-   private static final int EQUIPMENT = 94;
+   /** Container ids (gameval InventoryID): inventory and worn equipment. */
+   public static final int INVENTORY = 93;
+   public static final int EQUIPMENT = 94;
    private static final int MAX_NEARBY_NPCS = 15;
+   private static final int MAX_BANK_CHARS = 1500;
 
    public static final PlayerSnapshot LOGGED_OUT = new PlayerSnapshot();
 
-   private final boolean loggedIn;
-   private final Map<Skill, Integer> levels;
-   private final int combatLevel;
-   private final int totalLevel;
-   private final List<String> questsInProgress;
-   private final Map<String, QuestState> questStates;
-   private final int questsCompleted;
-   private final WorldPoint location;
-   private final List<String> nearbyNpcs;
+   private boolean loggedIn;
+   private final Map<Skill, Integer> levels = new EnumMap<>(Skill.class);
+   private int combatLevel;
+   private int totalLevel;
+   private final List<String> questsInProgress = new ArrayList<>();
+   private final Map<String, QuestState> questStates = new LinkedHashMap<>();
+   private int questsCompleted;
+   private WorldPoint location;
+   private final List<String> nearbyNpcs = new ArrayList<>();
    // Item name -> quantity. Bank is empty (and bankKnown false) until the bank has been opened.
-   private final Map<String, Integer> inventory;
-   private final Map<String, Integer> equipment;
-   private final Map<String, Integer> bank;
-   private final boolean bankKnown;
+   private final Map<String, Integer> inventory = new LinkedHashMap<>();
+   private final Map<String, Integer> equipment = new LinkedHashMap<>();
+   private final Map<String, Integer> bank = new LinkedHashMap<>();
+   private boolean bankKnown;
 
    private PlayerSnapshot() {
-      loggedIn = false;
-      levels = Collections.emptyMap();
-      combatLevel = 0;
-      totalLevel = 0;
-      questsInProgress = Collections.emptyList();
-      questStates = Collections.emptyMap();
-      questsCompleted = 0;
-      location = null;
-      nearbyNpcs = Collections.emptyList();
-      inventory = Collections.emptyMap();
-      equipment = Collections.emptyMap();
-      bank = Collections.emptyMap();
-      bankKnown = false;
-   }
-
-   private PlayerSnapshot(final Builder b) {
-      loggedIn = true;
-      levels = Collections.unmodifiableMap(b.levels);
-      combatLevel = b.combatLevel;
-      totalLevel = b.totalLevel;
-      questsInProgress = Collections.unmodifiableList(b.questsInProgress);
-      questStates = Collections.unmodifiableMap(b.questStates);
-      questsCompleted = b.questsCompleted;
-      location = b.location;
-      nearbyNpcs = Collections.unmodifiableList(b.nearbyNpcs);
-      inventory = Collections.unmodifiableMap(b.inventory);
-      equipment = Collections.unmodifiableMap(b.equipment);
-      bank = Collections.unmodifiableMap(b.bank);
-      bankKnown = b.bankKnown;
-   }
-
-   private static final class Builder {
-      final Map<Skill, Integer> levels = new EnumMap<>(Skill.class);
-      int combatLevel;
-      int totalLevel;
-      final List<String> questsInProgress = new ArrayList<>();
-      final Map<String, QuestState> questStates = new LinkedHashMap<>();
-      int questsCompleted;
-      WorldPoint location;
-      final List<String> nearbyNpcs = new ArrayList<>();
-      final Map<String, Integer> inventory = new LinkedHashMap<>();
-      final Map<String, Integer> equipment = new LinkedHashMap<>();
-      final Map<String, Integer> bank = new LinkedHashMap<>();
-      boolean bankKnown;
    }
 
    /** Call on the client thread. */
@@ -100,52 +58,54 @@ public final class PlayerSnapshot {
       if (client.getGameState() != GameState.LOGGED_IN) {
          return LOGGED_OUT;
       }
-      final Builder b = new Builder();
+      final PlayerSnapshot s = new PlayerSnapshot();
+      s.loggedIn = true;
       for (final Skill skill : Skill.values()) {
-         b.levels.put(skill, client.getRealSkillLevel(skill));
+         s.levels.put(skill, client.getRealSkillLevel(skill));
       }
-      b.totalLevel = client.getTotalLevel();
+      s.totalLevel = client.getTotalLevel();
 
       final Player local = client.getLocalPlayer();
       if (local != null) {
-         b.combatLevel = local.getCombatLevel();
-         b.location = local.getWorldLocation();
+         s.combatLevel = local.getCombatLevel();
+         s.location = local.getWorldLocation();
       }
 
       for (final Quest quest : Quest.values()) {
          final QuestState state = quest.getState(client);
-         b.questStates.put(quest.getName(), state);
+         s.questStates.put(quest.getName(), state);
          if (state == QuestState.IN_PROGRESS) {
-            b.questsInProgress.add(quest.getName());
+            s.questsInProgress.add(quest.getName());
          } else if (state == QuestState.FINISHED) {
-            b.questsCompleted++;
+            s.questsCompleted++;
          }
       }
 
       // Nearby NPC names, closest first: strong hints about where the player is.
-      final Set<String> npcNames = new LinkedHashSet<>();
       if (local != null) {
          final List<NPC> npcs = new ArrayList<>(client.getNpcs());
          final WorldPoint here = local.getWorldLocation();
          npcs.sort((x, y) -> Integer.compare(x.getWorldLocation().distanceTo(here), y.getWorldLocation().distanceTo(here)));
+         final Set<String> names = new LinkedHashSet<>();
          for (final NPC npc : npcs) {
-            if (npc.getName() != null && !npc.getName().equals("null") && npcNames.size() < MAX_NEARBY_NPCS) {
-               npcNames.add(npc.getName());
+            if (npc.getName() != null && !npc.getName().equals("null") && names.size() < MAX_NEARBY_NPCS) {
+               names.add(npc.getName());
             }
          }
+         s.nearbyNpcs.addAll(names);
       }
-      b.nearbyNpcs.addAll(npcNames);
 
-      addContainer(client.getItemContainer(INVENTORY), itemManager, b.inventory);
-      addContainer(client.getItemContainer(EQUIPMENT), itemManager, b.equipment);
-      b.bankKnown = bankCache.isKnown();
+      readContainer(client.getItemContainer(INVENTORY), itemManager, s.inventory);
+      readContainer(client.getItemContainer(EQUIPMENT), itemManager, s.equipment);
+      s.bankKnown = bankCache.isKnown();
       for (final Map.Entry<Integer, Integer> e : bankCache.getItems().entrySet()) {
-         b.bank.merge(itemManager.getItemComposition(e.getKey()).getName(), e.getValue(), Integer::sum);
+         s.bank.merge(itemManager.getItemComposition(e.getKey()).getName(), e.getValue(), Integer::sum);
       }
-      return new PlayerSnapshot(b);
+      return s;
    }
 
-   private static void addContainer(final ItemContainer container, final ItemManager itemManager,
+   /** Item names and quantities in a container. Call on the client thread. */
+   public static void readContainer(final ItemContainer container, final ItemManager itemManager,
       final Map<String, Integer> out) {
       if (container == null) {
          return;
@@ -170,7 +130,7 @@ public final class PlayerSnapshot {
    }
 
    public List<String> getQuestsInProgress() {
-      return questsInProgress;
+      return Collections.unmodifiableList(questsInProgress);
    }
 
    /** State of a quest by its exact name, or null if unknown. */
@@ -178,24 +138,32 @@ public final class PlayerSnapshot {
       return questStates.get(questName);
    }
 
+   public WorldPoint getLocation() {
+      return location;
+   }
+
    public List<String> getNearbyNpcs() {
-      return nearbyNpcs;
+      return Collections.unmodifiableList(nearbyNpcs);
    }
 
    public Map<String, Integer> getInventory() {
-      return inventory;
+      return Collections.unmodifiableMap(inventory);
    }
 
    public Map<String, Integer> getEquipment() {
-      return equipment;
+      return Collections.unmodifiableMap(equipment);
    }
 
    public Map<String, Integer> getBank() {
-      return bank;
+      return Collections.unmodifiableMap(bank);
    }
 
    public boolean isBankKnown() {
       return bankKnown;
+   }
+
+   public ItemHoldings holdings() {
+      return new ItemHoldings(inventory, equipment, bank, bankKnown, loggedIn);
    }
 
    /** Lowest skill, ties broken by enum order. Null when logged out. */
@@ -250,9 +218,16 @@ public final class PlayerSnapshot {
       sb.append("Quests completed: ").append(questsCompleted).append('\n');
       sb.append("Quests in progress: ")
          .append(questsInProgress.isEmpty() ? "none" : String.join(", ", questsInProgress)).append('\n');
+      sb.append("Location: ").append(locationText()).append('\n');
       sb.append("Wearing: ").append(items(equipment)).append('\n');
       sb.append("Inventory: ").append(items(inventory)).append('\n');
+      sb.append("Bank: ").append(bankKnown ? capped(items(bank)) : "unknown (not opened this session)").append('\n');
       return sb.toString();
+   }
+
+   /** Keeps a big bank from blowing the free-tier token budgets. */
+   private static String capped(final String s) {
+      return s.length() <= MAX_BANK_CHARS ? s : s.substring(0, MAX_BANK_CHARS) + "... (more items)";
    }
 
    public static String items(final Map<String, Integer> items) {
