@@ -37,9 +37,6 @@ Panels and overlay:
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/tracked_guide.png" width="242" alt="Pinned tracked guide with step progress"><br><sub>Tracked guide with step progress</sub></td>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/overlay_checklist.png" width="225" alt="In-game checklist overlay"><br><sub>In-game checklist overlay</sub></td>
   </tr>
-  <tr>
-    <td align="center" valign="top" colspan="2"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/pathfinder.png" width="500" alt="Top-down view of a walkable path around a pond and in through a closed door"><br><sub>Collision-aware path finder: routes around water, walls and objects, and through doors you can open (top-down view)</sub></td>
-  </tr>
 </table>
 
 ## 🛠️ Setup
