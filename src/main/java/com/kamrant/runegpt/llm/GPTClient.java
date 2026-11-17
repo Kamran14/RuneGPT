@@ -69,7 +69,7 @@ public class GPTClient {
     * recorded until the caller has parsed the reply: see {@link #remember}.
     */
    public LlmReply ask(final String prompt, final String playerContext) {
-      return ask(prompt, playerContext, null);
+      return ask(prompt, playerContext, playerContext, null);
    }
 
    /**
@@ -78,8 +78,18 @@ public class GPTClient {
     * over, so the player still only sees an error when every provider fails.
     */
    public LlmReply ask(final String prompt, final String playerContext, final StreamListener listener) {
-      final String system = Prompts.SYSTEM + Prompts.PLAYER_CONTEXT_HEADER + playerContext;
-      return send(system, history.withPendingPrompt(prompt), listener);
+      return ask(prompt, playerContext, playerContext, listener);
+   }
+
+   /**
+    * Like {@link #ask(String, String, StreamListener)} with two versions of the player context: {@code compactContext}
+    * (trimmed bank) goes to token-limited providers, {@code playerContext} (full bank) to the others.
+    */
+   public LlmReply ask(final String prompt, final String playerContext, final String compactContext,
+      final StreamListener listener) {
+      final List<ChatMessage> messages = history.withPendingPrompt(prompt);
+      return send(Prompts.SYSTEM + Prompts.PLAYER_CONTEXT_HEADER + playerContext, messages,
+         Prompts.SYSTEM + Prompts.PLAYER_CONTEXT_HEADER + compactContext, messages, listener);
    }
 
    /** Records a finished exchange. Store the readable answer, not raw JSON, to keep the history small. */
@@ -92,7 +102,13 @@ public class GPTClient {
     * steps). Same provider failover as {@link #ask}.
     */
    public LlmReply completeOnce(final String system, final String prompt) {
-      return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)), null);
+      return completeOnce(system, prompt, prompt);
+   }
+
+   /** Like {@link #completeOnce(String, String)}; {@code compactPrompt} goes to token-limited providers. */
+   public LlmReply completeOnce(final String system, final String prompt, final String compactPrompt) {
+      return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)),
+         system, Collections.singletonList(new ChatMessage(ChatRole.USER, compactPrompt)), null);
    }
 
    /**
@@ -111,7 +127,8 @@ public class GPTClient {
       return null;
    }
 
-   private LlmReply send(final String system, final List<ChatMessage> messages, final StreamListener listener) {
+   private LlmReply send(final String system, final List<ChatMessage> messages, final String compactSystem,
+      final List<ChatMessage> compactMessages, final StreamListener listener) {
       // Keys are decrypted here, per request, and only kept in this local map for the duration of the call.
       final Map<LLMProvider, String> keys = new EnumMap<>(LLMProvider.class);
       final List<String> undecryptable = new ArrayList<>();
@@ -129,7 +146,9 @@ public class GPTClient {
          final String key = keys.getOrDefault(provider, "");
          final TrackingStreamListener tracking = listener == null ? null : new TrackingStreamListener(listener);
          try {
-            final String reply = request(client, key, system, messages, tracking);
+            final boolean compact = provider.isTokenLimited();
+            final String reply = request(client, key, compact ? compactSystem : system,
+               compact ? compactMessages : messages, tracking);
             clearCooldown(provider);
             return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {

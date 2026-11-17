@@ -2,12 +2,14 @@ package com.kamrant.runegpt;
 
 import com.google.inject.Injector;
 import com.google.inject.Provides;
+import com.kamrant.runegpt.model.SavedBank;
 import com.kamrant.runegpt.overlay.GuideChecklistOverlay;
 import com.kamrant.runegpt.overlay.TargetHighlightOverlay;
 import com.kamrant.runegpt.overlay.WorldMapGuideOverlay;
 import com.kamrant.runegpt.quest.QuestJournalCache;
 import com.kamrant.runegpt.quest.QuestProgress;
 import com.kamrant.runegpt.service.BankCache;
+import com.kamrant.runegpt.service.BankStore;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
 import com.kamrant.runegpt.service.KeyVault;
@@ -72,6 +74,12 @@ public class RuneGPT extends Plugin {
 	private BankCache bankCache;
 
 	@Inject
+	private BankStore bankStore;
+
+	@Inject
+	private RuneGPTConfig config;
+
+	@Inject
 	private QuestJournalCache questJournalCache;
 
 	@Inject
@@ -105,6 +113,11 @@ public class RuneGPT extends Plugin {
 	private GPTPanel gptPanel;
 	private int lastTotalLevel;
 	private boolean questProgressDirty;
+	// Bank saving: written at most every BANK_SAVE_INTERVAL_MS while banking, and flushed on logout / shutdown.
+	private static final long BANK_SAVE_INTERVAL_MS = 5000;
+	private boolean bankSaveDirty;
+	private long bankSavedAt;
+	private long bankAccountHash = -1;
 
 	@Override
 	protected void startUp() throws Exception {
@@ -147,6 +160,7 @@ public class RuneGPT extends Plugin {
 			targetHighlighter.shutdown();
 		});
 		gptClient.clearConversation();
+		flushBankSave();
 		bankCache.clear();
 		questJournalCache.clear();
 		gptPanel = null;
@@ -155,6 +169,11 @@ public class RuneGPT extends Plugin {
 
 	@Subscribe
 	public void onConfigChanged(final ConfigChanged event) {
+		if (RuneGPTConfig.GROUP.equals(event.getGroup()) && RuneGPTConfig.KEY_REMEMBER_BANK.equals(event.getKey())
+			&& !config.rememberBank()) {
+			bankSaveDirty = false;
+			bankStore.deleteAll();
+		}
 		// A key was just entered in the settings: replace it with the encrypted form right away. RuneLite only
 		// writes settings to disk / profile sync in batches, so the plain value is never persisted.
 		if (RuneGPTConfig.GROUP.equals(event.getGroup())
@@ -182,6 +201,9 @@ public class RuneGPT extends Plugin {
 
 	@Subscribe
 	public void onGameStateChanged(final GameStateChanged event) {
+		if (event.getGameState() == GameState.LOGGED_IN) {
+			restoreSavedBank();
+		}
 		// Re-personalize guide suggestions on login / logout.
 		if (event.getGameState() == GameState.LOGGED_IN || event.getGameState() == GameState.LOGIN_SCREEN) {
 			lastTotalLevel = event.getGameState() == GameState.LOGGED_IN ? client.getTotalLevel() : 0;
@@ -190,7 +212,9 @@ public class RuneGPT extends Plugin {
 		}
 		if (event.getGameState() == GameState.LOGIN_SCREEN) {
 			// Bank and quest journal contents belong to the account that just logged out.
+			flushBankSave();
 			bankCache.clear();
+			bankAccountHash = -1;
 			questJournalCache.clear();
 		}
 	}
@@ -219,6 +243,9 @@ public class RuneGPT extends Plugin {
 		final int id = event.getContainerId();
 		if (id == InventoryID.BANK) {
 			bankCache.update(event.getItemContainer().getItems());
+			bankAccountHash = client.getAccountHash();
+			bankSaveDirty = config.rememberBank();
+			saveBankIfDue();
 		}
 		if (id == InventoryID.BANK || id == InventoryID.INV || id == InventoryID.WORN) {
 			// Live checklist: re-colour the tracked guide's items.
@@ -230,9 +257,42 @@ public class RuneGPT extends Plugin {
 	public void onGameTick(final GameTick tick) {
 		targetHighlighter.onTick();
 		questJournalCache.updateFromClient(client);
+		saveBankIfDue();
 		if (questProgressDirty && gptPanel != null) {
 			questProgressDirty = false;
 			gptPanel.refreshGuides();
+		}
+	}
+
+	/** Restores this account's bank from the copy saved on this computer, if the bank hasn't been seen yet. */
+	private void restoreSavedBank() {
+		if (!config.rememberBank() || bankCache.isKnown()) {
+			return;
+		}
+		final long account = client.getAccountHash();
+		final SavedBank saved = bankStore.load(account);
+		if (saved != null) {
+			bankCache.restore(saved.getItems(), saved.getSavedAt());
+			bankAccountHash = account;
+			guideTracker.onItemsChanged();
+		}
+	}
+
+	private void saveBankIfDue() {
+		if (bankSaveDirty && System.currentTimeMillis() - bankSavedAt >= BANK_SAVE_INTERVAL_MS) {
+			flushBankSave();
+		}
+	}
+
+	/** Writes the bank now if it changed since the last save (live bank data only, never a restored copy). */
+	private void flushBankSave() {
+		if (!bankSaveDirty) {
+			return;
+		}
+		bankSaveDirty = false;
+		if (config.rememberBank() && bankCache.isKnown() && !bankCache.isFromEarlierSession()) {
+			bankStore.save(bankAccountHash, bankCache.getItems(), bankCache.getSeenAt());
+			bankSavedAt = System.currentTimeMillis();
 		}
 	}
 

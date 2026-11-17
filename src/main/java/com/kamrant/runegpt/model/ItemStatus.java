@@ -5,7 +5,8 @@ import java.awt.Color;
 
 /**
  * Where a required item is relative to the player, with the colour used in the panel and overlay:
- * green = ready, yellow = in inventory but needs equipping, red = missing or still in the bank.
+ * green = ready, yellow = in inventory but needs equipping, red = missing or still in the bank, grey = not carried
+ * and the bank hasn't been opened yet.
  */
 public enum ItemStatus {
    /** In the inventory (or worn) and that's all it needs. */
@@ -18,8 +19,8 @@ public enum ItemStatus {
    IN_BANK("in bank", UiTheme.MISSING_RED),
    /** Not in inventory, equipment or (known) bank. */
    MISSING("missing", UiTheme.MISSING_RED),
-   /** Can't tell: bank not seen yet and not carried. */
-   UNKNOWN("not checked", UiTheme.MISSING_RED);
+   /** Can't tell: not carried, and the bank hasn't been opened this session. */
+   UNKNOWN("check bank", UiTheme.APPROX_GREY);
 
    private final String label;
    private final Color color;

@@ -68,7 +68,8 @@ public final class Prompts {
          + "incomplete stage (e.g. 6 if steps 1-5 are already completed).\n"
          + "- required_items: things to carry for current_step onward (don't list items only needed for already-"
          + "completed steps). recommended_gear: things to wear or wield, at most one per slot, matched to the "
-         + "player's levels and what they own.\n"
+         + "player's levels and what they own (worn, inventory and bank). If the bank is unknown, don't assume they "
+         + "lack an item; mention once that opening the bank lets you check.\n"
          + "- location name: the exact OSRS Wiki page name of a real place (e.g. \"Otto's Grotto\"), never a "
          + "made-up description. x/y/plane: your best estimate of the OSRS world coordinates of the spot; omit x "
          + "and y if you don't know them. Never write coordinates in steps or answer text.\n";
@@ -139,6 +140,11 @@ public final class Prompts {
    /** Header for live Grand Exchange prices attached to a chat or guide request. */
    public static final String PRICE_FACTS_HEADER = "\nVERIFIED LIVE GRAND EXCHANGE PRICES (use only these numbers "
       + "for item prices; never invent GP prices):\n";
+
+   /** Header for items relevant to the question, checked locally against inventory, worn items and bank. */
+   public static final String ITEM_CHECK_HEADER = "\nVERIFIED ITEM CHECK (items needed for this quest/task, checked "
+      + "against the player's inventory, worn items and bank; authoritative, use it instead of guessing what they "
+      + "own):\n";
 
    /** Header for the nearest resolved target coordinates relative to the player's position. */
    public static final String NEAREST_LOCATION_HEADER = "\nVERIFIED NEAREST LOCATION FROM PLAYER (authoritative "

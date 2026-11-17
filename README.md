@@ -10,7 +10,7 @@ An AI assistant for Old School RuneScape in RuneLite's sidebar. Ask about quests
 
 ## 🚀 Features
 - 🖥️ **Chat + guide sections**: ask anything, or pick a suggested guide (Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker, Minigames) with one click. Answers appear as they're written.
-- 📊 **Knows your account**: stats, quest progress, gear and (once opened) your bank are included automatically.
+- 📊 **Knows your account**: stats, quest progress, gear and your bank (remembered once you've opened it) are included automatically.
 - 📜 **Wiki-checked**: quest steps come from the OSRS Wiki, and items, NPCs and places are checked against it before you see them.
 - ✅ **Track guide**: a live checklist (green = ready, yellow = equip it, red = missing / in bank), step-by-step progress, an in-game overlay, a world map marker, and a walkable path to the NPC or spot when you're nearby.
 - 🔁 **Failover**: add more than one key and RuneGPT switches provider automatically if one fails or runs out of tokens.
@@ -63,7 +63,7 @@ Panels and overlay:
 - **Gear optimizer** (Best gear I own for *monster* / *boss*): compares Melee, Ranged and Magic against the monster's defences, weakness and attributes from the [OSRS Wiki](https://oldschool.runescape.wiki) using the gear you actually have worn, in your inventory and in your bank, and filters out items your levels can't equip yet. Press **Track setup** to pin the winning loadout to the live checklist and in-game overlay.
 - **Live GE prices**: item prices in answers and guide checklists come from RuneLite's live Grand Exchange price data (with a missing-items cost total on checklists), so the AI never guesses GP numbers.
 - **Track guide**: answers that describe an activity (a boss, monster, skill method, quest step...) come with a checklist of gear to wear and items to bring, plus where to go. Press **Track guide** to pin it:
-    - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank.
+    - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank, **grey** ("check bank") = not on you and RuneGPT hasn't seen your bank yet.
     - An in-game overlay shows the same checklist with distance and direction (toggle it with *In-game → Show guide checklist in game*).
     - The pinned panel shows done steps in green and the current step in orange; use **Prev** / **Next** or click a step to move.
     - The target gets a world map marker (cyan = OSRS Wiki coordinates, grey = AI estimate) and a minimap arrow with the distance. When you're nearby, the NPC or spot is outlined, with a hint arrow and a walkable path that goes around buildings and through doors.
@@ -79,14 +79,15 @@ RuneGPT sends data off your computer only to do what you ask:
 
 | What | Where it goes |
 |---|---|
-| Your questions, skill levels, quest progress, inventory, worn items, bank contents (only after you open your bank in that session) and location | The AI provider(s) you added a key for: Google Gemini, Anthropic Claude and/or Groq |
+| Your questions, skill levels, quest progress, inventory, worn items, bank contents (once you've opened your bank; see below) and location | The AI provider(s) you added a key for: Google Gemini, Anthropic Claude and/or Groq |
 | The same data, **only if you turn on the free starter service** | Pollinations (text.pollinations.ai), a free third-party service |
 | Quest, item, NPC and place names | The [OSRS Wiki](https://oldschool.runescape.wiki), to fetch guides and check that things exist |
 
 - API keys are **encrypted** (AES-256-GCM) before they're saved in your RuneLite settings, so synced RuneLite profiles and copied profile files never contain a usable key. The decryption key is created on first use and kept only on your computer in `~/.runelite/runegpt/secret.key`; it is never synced. On a new computer, re-enter your keys once.
 - Keys are only decrypted in memory when a request is sent, and only sent to their own provider.
 - Limitation: software running under your own computer account could read both files and decrypt the keys. Protecting against that would need your operating system's credential store, which RuneLite plugins can't rely on.
-- Your conversation is kept in memory while the plugin runs and cleared when it stops. Bank contents are forgotten when you log out.
+- Your conversation is kept in memory while the plugin runs and cleared when it stops.
+- **Bank memory:** so RuneGPT knows your bank before you open it, your last-seen bank (item ids and quantities only) is saved on your computer in `~/.runelite/runegpt/`, one file per account named by RuneLite's numeric account ID (not your username). It is never synced or uploaded; it's only sent to your AI provider as part of a question, like a freshly opened bank. Turn off *In-game → Remember bank between sessions* to stop this and delete the saved copies.
 - Each provider's own privacy policy applies to what you send it.
 
 ## 💸 Costs

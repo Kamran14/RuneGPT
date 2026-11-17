@@ -17,6 +17,7 @@ public interface RuneGPTConfig extends Config {
 
 	/** Settings holding API keys. They're stored encrypted (see KeyVault). */
 	String[] KEY_SETTINGS = {KEY_GEMINI, KEY_CLAUDE, KEY_GROQ};
+	String KEY_REMEMBER_BANK = "rememberBank";
 
 	/** What leaves the client, and where. Shown on the providers section; also in the plugin description and README. */
 	String DATA_DISCLOSURE = "Data sent: your questions, skill levels, quest progress, inventory, worn items, bank "
@@ -148,6 +149,18 @@ public interface RuneGPTConfig extends Config {
 		section = inGameSection
 	)
 	default boolean showGuideOverlay() {
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = KEY_REMEMBER_BANK,
+		name = "Remember bank between sessions",
+		description = "Save your last-seen bank (item ids and quantities only) on this computer, in .runelite/runegpt, "
+			+ "so RuneGPT knows it before you open the bank. Never synced. Turning this off deletes the saved copies.",
+		position = 1,
+		section = inGameSection
+	)
+	default boolean rememberBank() {
 		return true;
 	}
 }

@@ -32,16 +32,19 @@ public class AssistantService {
    private final QuestAssistant quests;
    private final PriceService prices;
    private final WikiLookup lookup;
+   private final RelevantItemChecker itemChecker;
 
    @Inject
    public AssistantService(final GPTClient gpt, final GuideVerifier verifier, final Gson gson,
-      final QuestAssistant quests, final PriceService prices, final WikiLookup lookup) {
+      final QuestAssistant quests, final PriceService prices, final WikiLookup lookup,
+      final RelevantItemChecker itemChecker) {
       this.gpt = gpt;
       this.quests = quests;
       this.verifier = verifier;
       this.gson = gson;
       this.prices = prices;
       this.lookup = lookup;
+      this.itemChecker = itemChecker;
    }
 
    /** Blocking: LLM and wiki calls. */
@@ -56,11 +59,14 @@ public class AssistantService {
    public AssistantResponse ask(final String prompt, final PlayerSnapshot snapshot, final StreamListener display) {
       final WorldTarget promptTarget = NearestTargetResolver.resolveFromText(prompt, snapshot, lookup);
       // Ground answers in official quest + wiki data, nearest coordinates from the player, and live GE prices.
-      final String context = snapshot.toContext()
-         + NearestTargetResolver.locationFactsFor(prompt, snapshot, lookup)
+      // The items this question needs are checked locally against inventory, worn items and bank, so the AI knows
+      // what the player has even when only a trimmed bank is sent (token-limited providers).
+      final String facts = NearestTargetResolver.locationFactsFor(prompt, snapshot, lookup)
          + quests.wikiFactsFor(prompt, snapshot)
+         + itemChecker.factsFor(prompt, snapshot, Collections.emptyList())
          + prices.priceFactsFor(prompt, snapshot);
-      final LlmReply reply = gpt.ask(prompt, context, display == null ? null : answerStream(display));
+      final LlmReply reply = gpt.ask(prompt, snapshot.toContext(prompt, true) + facts,
+         snapshot.toContext(prompt, false) + facts, display == null ? null : answerStream(display));
       if (!reply.isSuccess()) {
          return AssistantResponse.failure(reply.getText());
       }

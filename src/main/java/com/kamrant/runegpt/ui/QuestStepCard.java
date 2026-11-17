@@ -82,9 +82,6 @@ public final class QuestStepCard {
       track.addActionListener(e -> actions.track(step.toGuidePlan()));
       CardWidgets.addLeft(p, GuidePlanView.build(step.toGuidePlan(), true, track));
 
-      if (!step.getItems().isEmpty() && !step.isBankKnown()) {
-         CardWidgets.addLeft(p, CardWidgets.small(UiTheme.NOTE_OPEN_BANK_ITEMS));
-      }
       if (!step.getTip().isEmpty()) {
          CardWidgets.addLeft(p, Box.createVerticalStrut(4));
          CardWidgets.addLeft(p, CardWidgets.small("Tip: " + step.getTip()));

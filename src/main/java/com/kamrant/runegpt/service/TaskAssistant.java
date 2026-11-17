@@ -22,6 +22,7 @@ import com.kamrant.runegpt.wiki.WikiLookup;
 import com.kamrant.runegpt.wiki.Wikitext;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,16 +50,18 @@ public class TaskAssistant {
    private final PriceService prices;
    private final GPTClient gpt;
    private final Gson gson;
+   private final RelevantItemChecker itemChecker;
 
    @Inject
    public TaskAssistant(final WikiClient wiki, final WikiLookup lookup, final QuestAssistant questAssistant,
-      final PriceService prices, final GPTClient gpt, final Gson gson) {
+      final PriceService prices, final GPTClient gpt, final Gson gson, final RelevantItemChecker itemChecker) {
       this.wiki = wiki;
       this.lookup = lookup;
       this.questAssistant = questAssistant;
       this.prices = prices;
       this.gpt = gpt;
       this.gson = gson;
+      this.itemChecker = itemChecker;
    }
 
    /**
@@ -82,8 +85,10 @@ public class TaskAssistant {
       final String wikiUrl = wikiData[2];
 
       // 2. Ask the AI for the structured step-by-step plan.
+      final String itemCheck = itemChecker.factsFor(trimmed, player, Collections.emptyList());
       final LlmReply reply = gpt.completeOnce(Prompts.TASK_SYSTEM,
-         buildPrompt(trimmed, category, picks, player, completedStep, wikiText));
+         buildPrompt(trimmed, category, picks, player, completedStep, wikiText, true) + itemCheck,
+         buildPrompt(trimmed, category, picks, player, completedStep, wikiText, false) + itemCheck);
       if (!reply.isSuccess()) {
          return QuestStep.error(trimmed, reply.getText()).setHeaderLabel(UiTheme.HDR_TASK);
       }
@@ -228,14 +233,14 @@ public class TaskAssistant {
    }
 
    private String buildPrompt(final String task, final String category, final Map<String, String> picks,
-      final PlayerSnapshot p, final String completedStep, final String wikiText) {
+      final PlayerSnapshot p, final String completedStep, final String wikiText, final boolean fullBank) {
       final StringBuilder sb = new StringBuilder();
       sb.append("Task: ").append(task);
       if (category != null && !category.isEmpty()) {
          sb.append(" (category: ").append(category).append(')');
       }
       sb.append('\n');
-      sb.append(p.toContext());
+      sb.append(p.toContext(task, fullBank));
       sb.append(NearestTargetResolver.locationFactsFor(task, p, lookup));
       sb.append(prices.priceFactsFor(task, p));
       if (completedStep != null && !completedStep.isEmpty()) {

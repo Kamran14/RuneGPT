@@ -18,12 +18,14 @@ import com.kamrant.runegpt.service.ItemStatusResolver;
 import com.kamrant.runegpt.service.NearestTargetResolver;
 import com.kamrant.runegpt.service.PlayerSnapshot;
 import com.kamrant.runegpt.service.PriceService;
+import com.kamrant.runegpt.service.RelevantItemChecker;
 import com.kamrant.runegpt.service.ResponseParser;
 import com.kamrant.runegpt.wiki.WikiClient;
 import com.kamrant.runegpt.wiki.WikiLookup;
 import com.kamrant.runegpt.wiki.Wikitext;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -59,15 +61,17 @@ public class QuestAssistant {
    private final GPTClient gpt;
    private final Gson gson;
    private final PriceService prices;
+   private final RelevantItemChecker itemChecker;
 
    @Inject
    public QuestAssistant(final WikiClient wiki, final WikiLookup lookup, final GPTClient gpt, final Gson gson,
-      final PriceService prices) {
+      final PriceService prices, final RelevantItemChecker itemChecker) {
       this.wiki = wiki;
       this.lookup = lookup;
       this.gpt = gpt;
       this.gson = gson;
       this.prices = prices;
+      this.itemChecker = itemChecker;
    }
 
    /** Blocking: does network calls. {@code completedStep} is the step the player just finished, or null. */
@@ -103,8 +107,10 @@ public class QuestAssistant {
       }
 
       // 3. Ask the AI for a structured step.
+      final String itemCheck = itemChecker.factsFor(questInput, player, Collections.singletonList(quest));
       final LlmReply reply = gpt.completeOnce(Prompts.QUEST_SYSTEM,
-         buildPrompt(quest, state, picks, player, completedStep, guideText));
+         buildPrompt(quest, state, picks, player, completedStep, guideText, itemCheck, true),
+         buildPrompt(quest, state, picks, player, completedStep, guideText, itemCheck, false));
       if (!reply.isSuccess()) {
          return QuestStep.error(quest, reply.getText());
       }
@@ -293,7 +299,8 @@ public class QuestAssistant {
    }
 
    private static String buildPrompt(final String quest, final QuestState state, final Map<String, String> picks,
-      final PlayerSnapshot p, final String completedStep, final String wikiText) {
+      final PlayerSnapshot p, final String completedStep, final String wikiText, final String itemCheck,
+      final boolean fullBank) {
       final StringBuilder sb = new StringBuilder();
       sb.append("Quest: ").append(quest).append(" (status: ")
          .append(state == null ? "unknown" : state.name().toLowerCase(Locale.ROOT).replace('_', ' ')).append(")\n");
@@ -301,7 +308,8 @@ public class QuestAssistant {
       sb.append("Player location: ").append(p.locationText()).append('\n');
       sb.append("Inventory: ").append(PlayerSnapshot.items(p.getInventory())).append('\n');
       sb.append("Wearing: ").append(PlayerSnapshot.items(p.getEquipment())).append('\n');
-      sb.append("Bank: ").append(p.isBankKnown() ? PlayerSnapshot.items(p.getBank()) : "unknown (not opened yet)").append('\n');
+      sb.append("Bank: ").append(p.isBankKnown() ? p.bankText(quest, fullBank) : "unknown (not opened yet)").append('\n');
+      sb.append(itemCheck);
       if (completedStep != null) {
          sb.append(String.format(Prompts.QUEST_COMPLETED_STEP, completedStep));
       }

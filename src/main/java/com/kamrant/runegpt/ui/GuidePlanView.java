@@ -3,6 +3,7 @@ package com.kamrant.runegpt.ui;
 import com.kamrant.runegpt.model.GuideItem;
 import com.kamrant.runegpt.model.GuideItemKind;
 import com.kamrant.runegpt.model.GuidePlan;
+import com.kamrant.runegpt.model.ItemStatus;
 import com.kamrant.runegpt.service.PriceService;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -74,6 +75,10 @@ public final class GuidePlanView {
          CardWidgets.addLeft(p, Box.createVerticalStrut(4));
          CardWidgets.addLeft(p, CardWidgets.label(UiTheme.LBL_BRING));
          bring.forEach(item -> CardWidgets.addLeft(p, itemRow(item)));
+      }
+      if (plan.getItems().stream().anyMatch(item -> item.getStatus() == ItemStatus.UNKNOWN)) {
+         CardWidgets.addLeft(p, Box.createVerticalStrut(3));
+         CardWidgets.addLeft(p, CardWidgets.small(UiTheme.NOTE_OPEN_BANK_ITEMS));
       }
       final long missingGp = PriceService.missingCost(plan.getItems());
       if (missingGp > 0) {

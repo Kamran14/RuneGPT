@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,7 +52,7 @@ import net.runelite.client.game.ItemStats;
 public final class PlayerSnapshot {
 
    private static final int MAX_NEARBY_NPCS = 15;
-   private static final int MAX_BANK_CHARS = 1500;
+   private static final int MAX_BANK_CHARS = 2400;
    private static final int SCENE_SCAN_RADIUS = 48;
    private static final Skill[] COMBAT_SKILLS = {
       Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED, Skill.MAGIC, Skill.HITPOINTS
@@ -88,9 +89,15 @@ public final class PlayerSnapshot {
    private final Map<String, Integer> inventory = new LinkedHashMap<>();
    private final Map<String, Integer> equipment = new LinkedHashMap<>();
    private final Map<String, Integer> bank = new LinkedHashMap<>();
+   // Bank item name -> total GE value, and the names of equipable bank items: used to decide which bank items
+   // the AI sees first when the whole bank doesn't fit.
+   private final Map<String, Long> bankValue = new HashMap<>();
+   private final Set<String> bankGear = new HashSet<>();
    private final List<OwnedGear> ownedGear = new ArrayList<>();
    private long cash;
    private boolean bankKnown;
+   private boolean bankFromEarlierSession;
+   private long bankSeenAt;
 
    private PlayerSnapshot() {
    }
@@ -164,6 +171,8 @@ public final class PlayerSnapshot {
       s.cash += countCash(inv);
 
       s.bankKnown = bankCache.isKnown();
+      s.bankFromEarlierSession = bankCache.isFromEarlierSession();
+      s.bankSeenAt = bankCache.getSeenAt();
       for (final Map.Entry<Integer, Integer> e : bankCache.getItems().entrySet()) {
          final int id = e.getKey();
          final int qty = e.getValue();
@@ -172,8 +181,15 @@ public final class PlayerSnapshot {
             continue;
          }
          s.bank.merge(comp.getName(), qty, Integer::sum);
+         s.bankValue.merge(comp.getName(), (long) itemManager.getItemPrice(itemManager.canonicalize(id)) * qty,
+            Long::sum);
          s.cash += cashOf(id, qty);
          addGear(id, comp, itemManager, ItemSource.BANK, gearById);
+      }
+      for (final OwnedGear gear : gearById.values()) {
+         if (gear.getSource() == ItemSource.BANK) {
+            s.bankGear.add(gear.getName());
+         }
       }
       s.ownedGear.addAll(gearById.values());
       return s;
@@ -463,6 +479,11 @@ public final class PlayerSnapshot {
       return cash;
    }
 
+   /** True when the bank list was restored from an earlier session (may be out of date). */
+   public boolean isBankFromEarlierSession() {
+      return bankFromEarlierSession;
+   }
+
    public boolean isBankKnown() {
       return bankKnown;
    }
@@ -669,6 +690,14 @@ public final class PlayerSnapshot {
 
    /** Text block sent to the LLM as player context for general questions. */
    public String toContext() {
+      return toContext("", false);
+   }
+
+   /**
+    * Player context for the LLM. With {@code fullBank} the whole bank is listed; otherwise it's trimmed to the
+    * most useful items (see {@link #bankText(String, boolean)}).
+    */
+   public String toContext(final String question, final boolean fullBank) {
       if (!loggedIn) {
          return Prompts.LOGGED_OUT_CONTEXT;
       }
@@ -716,13 +745,64 @@ public final class PlayerSnapshot {
       sb.append("Location: ").append(locationText()).append('\n');
       sb.append("Wearing: ").append(items(equipment)).append('\n');
       sb.append("Inventory: ").append(items(inventory)).append('\n');
-      sb.append("Bank: ").append(bankKnown ? capped(items(bank)) : "unknown (not opened this session)").append('\n');
+      sb.append("Bank").append(bankKnown && bankFromEarlierSession ? " (" + savedBankAge() + ")" : "").append(": ")
+         .append(bankKnown ? bankText(question, fullBank) : "unknown (not opened yet)").append('\n');
       return sb.toString();
    }
 
-   /** Keeps a big bank from blowing the free-tier token budgets. */
-   private static String capped(final String s) {
-      return s.length() <= MAX_BANK_CHARS ? s : s.substring(0, MAX_BANK_CHARS) + "... (more items)";
+   /**
+    * The bank as text, most useful items first: items named in the question, then equipable gear (most valuable
+    * first), then everything else by GE value. Unless {@code full}, it stops at {@link #MAX_BANK_CHARS} (for
+    * token-limited providers) and summarises the rest as a count.
+    */
+   public String bankText(final String question, final boolean full) {
+      if (bank.isEmpty()) {
+         return "nothing";
+      }
+      final String q = question == null ? "" : question.toLowerCase(Locale.ROOT);
+      final List<String> names = new ArrayList<>(bank.keySet());
+      names.sort((a, b) -> {
+         final int byMention = Boolean.compare(mentioned(q, b), mentioned(q, a));
+         if (byMention != 0) {
+            return byMention;
+         }
+         final int byGear = Boolean.compare(bankGear.contains(b), bankGear.contains(a));
+         if (byGear != 0) {
+            return byGear;
+         }
+         return Long.compare(bankValue.getOrDefault(b, 0L), bankValue.getOrDefault(a, 0L));
+      });
+      final StringBuilder sb = new StringBuilder();
+      int shown = 0;
+      for (final String name : names) {
+         final int qty = bank.get(name);
+         final String part = qty > 1 ? name + " x" + qty : name;
+         if (!full && sb.length() > 0 && sb.length() + part.length() + 2 > MAX_BANK_CHARS && !mentioned(q, name)) {
+            break;
+         }
+         if (sb.length() > 0) {
+            sb.append(", ");
+         }
+         sb.append(part);
+         shown++;
+      }
+      if (shown < names.size()) {
+         sb.append(" ... and ").append(names.size() - shown)
+            .append(" more lower-value items (not listed; ask if you need to know about a specific item)");
+      }
+      return sb.toString();
+   }
+
+   /** e.g. "saved 3 days ago, may have changed since". */
+   private String savedBankAge() {
+      final long hours = Math.max(0, (System.currentTimeMillis() - bankSeenAt) / 3_600_000L);
+      final String age = hours < 1 ? "less than an hour" : hours < 48 ? hours + " hours" : hours / 24 + " days";
+      return "as last seen " + age + " ago, may have changed since";
+   }
+
+   private static boolean mentioned(final String questionLower, final String itemName) {
+      return itemName.length() >= 4 && !questionLower.isEmpty()
+         && questionLower.contains(itemName.toLowerCase(Locale.ROOT));
    }
 
    public static String items(final Map<String, Integer> items) {
