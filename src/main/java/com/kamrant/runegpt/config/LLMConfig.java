@@ -10,6 +10,7 @@ public final class LLMConfig {
 
    // Gemini
    public static final String GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+   public static final String GEMINI_STREAM_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent?alt=sse";
    public static final String HEADER_GEMINI_KEY = "x-goog-api-key";
 
    // Claude (Anthropic Messages API)

@@ -10,6 +10,9 @@ public final class GroqRequest {
 
    @SerializedName("model")
    private final String model;
+   // Null (omitted) for a normal reply; true for a server-sent event stream.
+   @SerializedName("stream")
+   private Boolean stream;
    @SerializedName("messages")
    private final GroqMessage[] messages;
    @SerializedName("temperature")
@@ -37,5 +40,11 @@ public final class GroqRequest {
          messages[i + 1] = new GroqMessage(msg.getRole() == ChatRole.USER ? "user" : "assistant", msg.getText());
       }
       return new GroqRequest(model, messages, temperature, maxCompletionTokens);
+   }
+
+   /** Ask for the reply as a server-sent event stream. */
+   public GroqRequest streaming() {
+      this.stream = Boolean.TRUE;
+      return this;
    }
 }

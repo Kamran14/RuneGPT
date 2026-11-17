@@ -41,11 +41,25 @@ public class ClaudeProviderClient implements LLMProviderClient {
    @Override
    public Request buildRequest(final String apiKey, final String system, final List<ChatMessage> history,
       final RuneGPTConfig config, final Gson gson) {
+      return build(apiKey, system, history, config, gson, false);
+   }
+
+   @Override
+   public Request buildStreamRequest(final String apiKey, final String system, final List<ChatMessage> history,
+      final RuneGPTConfig config, final Gson gson) {
+      return build(apiKey, system, history, config, gson, true);
+   }
+
+   private Request build(final String apiKey, final String system, final List<ChatMessage> history,
+      final RuneGPTConfig config, final Gson gson, final boolean stream) {
       final String model = config.claudeModel() == null || config.claudeModel().trim().isEmpty()
          ? LLMConfig.CLAUDE_DEFAULT_MODEL
          : config.claudeModel().trim();
       final ClaudeRequest body = ClaudeRequest.create(
          model, system, history, LLMConfig.CLAUDE_MAX_TOKENS);
+      if (stream) {
+         body.streaming();
+      }
 
       final Request.Builder builder = new Request.Builder()
          .url(LLMConfig.CLAUDE_URL)
@@ -64,9 +78,51 @@ public class ClaudeProviderClient implements LLMProviderClient {
       // 529 = overloaded; a 400 about credit balance = account out of credit. Both mean "try elsewhere".
       final boolean outOfCredit = response.code() == 400 && base.getMessage().toLowerCase().contains("credit");
       if (response.code() == 529 || outOfCredit) {
-         return new ProviderException(base.getMessage(), true, base.getRetryAfter());
+         return new ProviderException(base.getMessage(), true, base.getRetryAfter(), base.getHttpStatus());
       }
       return base;
+   }
+
+   /**
+    * Messages API stream: text arrives in content_block_delta / text_delta events (thinking deltas are skipped);
+    * message_delta carries the stop reason. A refusal fallback continues on the same stream, so its text simply
+    * keeps arriving.
+    */
+   @Override
+   public String streamDelta(final JsonObject event, final StreamState state) throws ProviderException {
+      final String type = event.has("type") ? event.get("type").getAsString() : "";
+      switch (type) {
+         case "error": {
+            final JsonObject error = event.getAsJsonObject("error");
+            final String errType = error != null && error.has("type") ? error.get("type").getAsString() : "";
+            // Overloaded mid-stream: try another provider and skip this one for a while.
+            throw new ProviderException("stream error: " + LLMProviderClient.streamError(event),
+               "overloaded_error".equals(errType), null);
+         }
+         case "content_block_delta": {
+            final JsonObject delta = event.getAsJsonObject("delta");
+            if (delta != null && delta.has("type") && "text_delta".equals(delta.get("type").getAsString())
+               && delta.has("text")) {
+               return delta.get("text").getAsString();
+            }
+            return "";
+         }
+         case "message_delta": {
+            final JsonObject delta = event.getAsJsonObject("delta");
+            final JsonElement stop = delta == null ? null : delta.get("stop_reason");
+            final String stopReason = stop == null || stop.isJsonNull() ? "" : stop.getAsString();
+            if ("refusal".equals(stopReason)) {
+               // Partial output from a declined attempt must be discarded, not shown as an answer.
+               throw new ProviderException(LLMConfig.ERR_DECLINED);
+            }
+            if ("max_tokens".equals(stopReason)) {
+               state.markTruncated();
+            }
+            return "";
+         }
+         default:
+            return "";
+      }
    }
 
    @Override

@@ -19,6 +19,9 @@ public final class ClaudeRequest {
 
    @SerializedName("model")
    private final String model;
+   // Null (omitted) for a normal reply; true for a server-sent event stream.
+   @SerializedName("stream")
+   private Boolean stream;
    @SerializedName("max_tokens")
    private final int maxTokens;
    @SerializedName("system")
@@ -54,5 +57,11 @@ public final class ClaudeRequest {
       }
       return new ClaudeRequest(model, maxTokens, system, messages, new ClaudeOutputConfig("medium"),
          supportsFallbacks(model) ? "default" : null);
+   }
+
+   /** Ask for the reply as a server-sent event stream. */
+   public ClaudeRequest streaming() {
+      this.stream = Boolean.TRUE;
+      return this;
    }
 }

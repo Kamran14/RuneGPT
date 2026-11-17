@@ -40,6 +40,22 @@ public final class TextUtils {
          .trim();
    }
 
+   /**
+    * Plain text from inline Markdown, for places that can't render it (the in-game overlay): removes bold/italic
+    * markers and code ticks, keeps link text, and drops leading heading/list markers.
+    */
+   public static String stripMarkdown(final String s) {
+      if (s == null || s.isEmpty()) {
+         return "";
+      }
+      return s.replaceAll("\\[([^\\]]*)\\]\\([^)]*\\)", "$1")
+         .replaceAll("\\*\\*|__|`", "")
+         .replaceAll("(?<![\\w*])\\*(?!\\s)([^*]+?)\\*(?![\\w*])", "$1")
+         .replaceAll("^\\s*(#{1,6}|[-*+])\\s+", "")
+         .replaceAll("\\s+", " ")
+         .trim();
+   }
+
    /** Truncates {@code s} to at most {@code maxChars}, appending "…" when shortened. */
    public static String shorten(final String s, final int maxChars) {
       if (s == null || s.length() <= maxChars) {

@@ -205,13 +205,16 @@ public class GPTPanel extends PluginPanel {
    private void ask(final String display, final String prompt) {
       chatView.addUserMessage(display);
       chatView.showThinking(UiTheme.LBL_THINKING);
+      // The answer text appears as it streams in; the parsed, wiki-verified response replaces it at the end.
+      final StreamingTextSink stream = new StreamingTextSink(chatView);
       withSnapshot(snapshot -> {
-         final AssistantResponse response = assistant.ask(prompt, snapshot);
+         final AssistantResponse response = assistant.ask(prompt, snapshot, stream);
          if (response.isSuccess() && response.getGuide() != null
             && NearestTargetResolver.isNavigationRequest(prompt)) {
             tracker.start(response.getGuide());
          }
          SwingUtilities.invokeLater(() -> {
+            stream.close();
             showResponse(response);
             chatView.focusInput();
          });

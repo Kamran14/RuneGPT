@@ -45,7 +45,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
          return null;
       }
       panelComponent.getChildren().add(TitleComponent.builder()
-         .text(TextUtils.shorten(plan.getTitle(), 28))
+         .text(TextUtils.shorten(TextUtils.stripMarkdown(plan.getTitle()), 28))
          .color(ColorScheme.BRAND_ORANGE)
          .build());
 
@@ -67,7 +67,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
                   .build());
             }
             panelComponent.getChildren().add(LineComponent.builder()
-               .left("▶ " + steps.get(cur))
+               .left("▶ " + TextUtils.stripMarkdown(steps.get(cur)))
                .leftColor(UiTheme.ACTIVE_STEP_ORANGE)
                .build());
          }

@@ -44,6 +44,51 @@ public class GeminiProviderClient implements LLMProviderClient {
    }
 
    @Override
+   public Request buildStreamRequest(final String apiKey, final String system, final List<ChatMessage> history,
+      final RuneGPTConfig config, final Gson gson) {
+      final GeminiRequest body = GeminiRequest.create(system, history, config.temperature());
+      return new Request.Builder()
+         .url(LLMConfig.GEMINI_STREAM_URL)
+         .addHeader(LLMConfig.HEADER_GEMINI_KEY, apiKey)
+         .post(RequestBody.create(JSON, gson.toJson(body)))
+         .build();
+   }
+
+   /** Each SSE event is a partial GenerateContentResponse; text is in candidates[0].content.parts[].text. */
+   @Override
+   public String streamDelta(final JsonObject event, final StreamState state) throws ProviderException {
+      final String error = LLMProviderClient.streamError(event);
+      if (error != null) {
+         throw new ProviderException("stream error: " + error);
+      }
+      final JsonArray candidates = event.getAsJsonArray("candidates");
+      if (candidates == null || candidates.size() == 0) {
+         final JsonObject feedback = event.getAsJsonObject("promptFeedback");
+         if (feedback != null && feedback.has("blockReason")) {
+            throw new ProviderException(LLMConfig.ERR_BLOCKED_ANSWER);
+         }
+         return "";
+      }
+      final JsonObject candidate = candidates.get(0).getAsJsonObject();
+      final JsonElement finish = candidate.get("finishReason");
+      if (finish != null && !finish.isJsonNull() && "MAX_TOKENS".equals(finish.getAsString())) {
+         state.markTruncated();
+      }
+      final JsonObject content = candidate.getAsJsonObject("content");
+      if (content == null || !content.has("parts")) {
+         return "";
+      }
+      final StringBuilder text = new StringBuilder();
+      for (final JsonElement part : content.getAsJsonArray("parts")) {
+         final JsonObject p = part.getAsJsonObject();
+         if (p.has("text")) {
+            text.append(p.get("text").getAsString());
+         }
+      }
+      return text.toString();
+   }
+
+   @Override
    public String parseResponse(final Response response, final String body, final Gson gson) throws ProviderException {
       final JsonObject json = gson.fromJson(body, JsonObject.class);
       final JsonArray candidates = json.getAsJsonArray("candidates");

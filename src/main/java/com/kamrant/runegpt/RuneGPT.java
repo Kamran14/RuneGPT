@@ -14,6 +14,9 @@ import com.kamrant.runegpt.service.KeyVault;
 import com.kamrant.runegpt.service.TargetHighlighter;
 import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.ui.GPTPanel;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import javax.inject.Inject;
@@ -32,6 +35,8 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.ui.overlay.OverlayManager;
@@ -124,12 +129,17 @@ public class RuneGPT extends Plugin {
 
 	@Override
 	protected void shutDown() throws Exception {
-		clientToolbar.removeNavigation(navButton);
+		// Null-safe: if startUp failed part way, RuneLite still calls shutDown.
+		if (navButton != null) {
+			clientToolbar.removeNavigation(navButton);
+		}
 		overlayManager.remove(targetHighlightOverlay);
 		overlayManager.remove(guideChecklistOverlay);
 		overlayManager.remove(worldMapGuideOverlay);
 		// Stop background threads (panel worker, wiki lookups) and UI timers.
-		gptPanel.shutdown();
+		if (gptPanel != null) {
+			gptPanel.shutdown();
+		}
 		guideVerifier.shutdown();
 		// Remove the world map marker, highlight target and hint arrow (client thread).
 		clientThread.invokeLater(() -> {
@@ -231,7 +241,29 @@ public class RuneGPT extends Plugin {
 		return configManager.getConfig(RuneGPTConfig.class);
 	}
 
+	/**
+	 * The sidebar icon. If the logo resource is missing (e.g. an IDE build that didn't copy resources), use a
+	 * plain fallback icon rather than failing to start the whole plugin.
+	 */
 	private BufferedImage getImg() {
-		return ImageUtil.loadImageResource(getClass(), LOGO);
+		try {
+			return ImageUtil.loadImageResource(getClass(), LOGO);
+		} catch (final IllegalArgumentException e) {
+			log.warn("RuneGPT: sidebar icon {} not found, using a fallback icon", LOGO);
+			return fallbackIcon();
+		}
+	}
+
+	private static BufferedImage fallbackIcon() {
+		final BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+		final Graphics2D g = img.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setColor(ColorScheme.BRAND_ORANGE);
+		g.fillRoundRect(1, 1, 14, 14, 5, 5);
+		g.setColor(Color.BLACK);
+		g.setFont(FontManager.getRunescapeBoldFont());
+		g.drawString("R", 5, 13);
+		g.dispose();
+		return img;
 	}
 }

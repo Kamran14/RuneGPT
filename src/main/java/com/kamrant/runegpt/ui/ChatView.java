@@ -60,6 +60,11 @@ public class ChatView extends JPanel {
    private long newestAddedAt;
    private JComponent thinkingRow;
    private Timer thinkingTimer;
+   // While a reply streams in, the thinking bubble shows the text so far instead of the animated label.
+   private JComponent thinkingBubble;
+   private JLabel thinkingLabel;
+   private String thinkingText;
+   private HtmlPane streamPane;
 
    public ChatView(final Consumer<String> onSend, final Runnable onNewChat) {
       setLayout(new BorderLayout());
@@ -247,14 +252,60 @@ public class ChatView extends JPanel {
       final JLabel dots = new JLabel(label);
       dots.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
       dots.setFont(FontManager.getRunescapeFont());
-      thinkingRow = addRow(bubble("RuneGPT", dots, ASSISTANT_BG), 0);
+      thinkingLabel = dots;
+      thinkingText = label;
+      thinkingBubble = bubble("RuneGPT", dots, ASSISTANT_BG);
+      thinkingRow = addRow(thinkingBubble, 0);
+      startThinkingTimer();
+      setBusy(true);
+   }
+
+   private void startThinkingTimer() {
+      final JLabel dots = thinkingLabel;
+      final String label = thinkingText;
       final int[] tick = { 0 };
       thinkingTimer = new Timer(400, e -> {
          tick[0] = (tick[0] + 1) % 4;
          dots.setText(label + "...".substring(0, tick[0]));
       });
       thinkingTimer.start();
-      setBusy(true);
+   }
+
+   /**
+    * Shows a reply that is still streaming in, in the pending bubble (replacing the "Thinking" label). The
+    * finished answer later replaces the whole bubble via {@link #addAssistantMessage}.
+    */
+   public void showStreamingText(final String markdown) {
+      if (thinkingRow == null || markdown == null || markdown.trim().isEmpty()) {
+         return;
+      }
+      if (streamPane == null) {
+         if (thinkingTimer != null) {
+            thinkingTimer.stop();
+            thinkingTimer = null;
+         }
+         thinkingBubble.remove(thinkingLabel);
+         streamPane = new HtmlPane(TEXT);
+         thinkingBubble.add(streamPane, BorderLayout.CENTER);
+      }
+      streamPane.setHtml(MarkdownRenderer.toHtml(markdown));
+      thinkingBubble.revalidate();
+      thinkingBubble.repaint();
+      scheduleScroll(thinkingRow);
+   }
+
+   /** Discards streamed text (the answer is being retried elsewhere) and shows the "Thinking" label again. */
+   public void resetStreaming() {
+      if (thinkingRow == null || streamPane == null) {
+         return;
+      }
+      thinkingBubble.remove(streamPane);
+      streamPane = null;
+      thinkingLabel.setText(thinkingText);
+      thinkingBubble.add(thinkingLabel, BorderLayout.CENTER);
+      thinkingBubble.revalidate();
+      thinkingBubble.repaint();
+      startThinkingTimer();
    }
 
    public void setBusy(final boolean busy) {
@@ -284,6 +335,9 @@ public class ChatView extends JPanel {
          messages.remove(thinkingRow);
          thinkingRow = null;
       }
+      thinkingBubble = null;
+      thinkingLabel = null;
+      streamPane = null;
       setBusy(false);
    }
 

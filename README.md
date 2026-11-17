@@ -9,16 +9,24 @@
 An AI assistant for Old School RuneScape in RuneLite's sidebar. Ask about quests, bosses, skilling or money making and get short, tactical answers tailored to your account, with guides checked against the OSRS Wiki and a live item checklist you can track in game.
 
 ## 🚀 Features
-- 🖥️ **Chat + guide sections**: ask anything, or pick a suggested guide (Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker, Minigames) with one click.
+- 🖥️ **Chat + guide sections**: ask anything, or pick a suggested guide (Quest Helper, Combat & Slayer, Boss Prep, Skill Trainer, Money Maker, Minigames) with one click. Answers appear as they're written.
 - 📊 **Knows your account**: stats, quest progress, gear and (once opened) your bank are included automatically.
 - 📜 **Wiki-checked**: quest steps come from the OSRS Wiki, and items, NPCs and places are checked against it before you see them.
-- ✅ **Track guide**: a live checklist (green = ready, yellow = equip it, red = missing / in bank), an in-game overlay, a world map marker and NPC highlights.
+- ✅ **Track guide**: a live checklist (green = ready, yellow = equip it, red = missing / in bank), step-by-step progress, an in-game overlay, a world map marker, and a walkable path to the NPC or spot when you're nearby.
 - 🔁 **Failover**: add more than one key and RuneGPT switches provider automatically if one fails or runs out of tokens.
 
 ### Showcase
-Questions about stats and quests integrated into plugin.
-![Time constraint](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/stats_response2.png)
-![Slayer Question](https://github.com/Kamran14/RuneGPT/blob/master/imgs/stats_response.png?raw=true)
+
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/panel_chat.png" width="242" alt="Chat answer with a guide checklist and Start task buttons"><br><sub>Answer, checklist and guided tasks</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/quest_helper.png" width="242" alt="Quest helper card for Cook's Assistant"><br><sub>Wiki-grounded quest helper</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/tracked_guide.png" width="242" alt="Pinned tracked guide with step progress"><br><sub>Tracked guide with step progress</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/overlay_checklist.png" width="225" alt="In-game checklist overlay"><br><sub>In-game checklist overlay</sub></td>
+  </tr>
+</table>
 
 ## 🛠️ Setup
 
@@ -33,21 +41,21 @@ Questions about stats and quests integrated into plugin.
 
 3. **Optional: free starter service (no key).** To try RuneGPT without any key, turn on *Free starter service → Use free starter service*. It's **off by default**. It uses the keyless [Pollinations](https://pollinations.ai) service, which is slow, limited to about one reply every 45 seconds, and often inaccurate. When it's on, your questions and player data are sent to that free third-party service. With keys set, it's only used after your providers.
 
-![API config](https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/config_panel.png)
-
 ## ✨ Usage
 
 - Open the RuneGPT panel from the sidebar: the **chat** is on top and the collapsible guide **sections** are below. Drag the divider to give either more room.
 - Each section suggests guides based on your stats, gear and quest progress. Press **Ask** for a one-click answer, or click a guide's title to pick optional preferences (attack style, gear budget, fastest/cheapest/AFK) first.
     - **Edit guide** changes its details (e.g. the monster or kill count) or rewrites the whole question. Edits are saved; **Reset to default** undoes them.
     - **Something else?** at the bottom of each section lets you type your own interest.
-- **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next steps, and the items you need. Anything the AI suggests that the wiki guide doesn't mention is hidden.
+- **Quest helper** (Continue *quest* / Quest helper: *quest*): checks the quest really exists, reads its guide from the [OSRS Wiki](https://oldschool.runescape.wiki), then shows where you likely are, the next steps, and the items you need. Anything the AI suggests that the wiki guide doesn't mention is hidden. Press **Done, next step** as you go.
+- **Guided tasks**: answers can suggest quests, minigames, money makers, bosses or skilling methods with a **Start task** button, which walks you through them step by step. Completed quests and skill goals you've already reached aren't suggested.
 - **Gear optimizer** (Best gear I own for *monster* / *boss*): compares Melee, Ranged and Magic against the monster's defences, weakness and attributes from the [OSRS Wiki](https://oldschool.runescape.wiki) using the gear you actually have worn, in your inventory and in your bank, and filters out items your levels can't equip yet. Press **Track setup** to pin the winning loadout to the live checklist and in-game overlay.
 - **Live GE prices**: item prices in answers and guide checklists come from RuneLite's live Grand Exchange price data (with a missing-items cost total on checklists), so the AI never guesses GP numbers.
 - **Track guide**: answers that describe an activity (a boss, monster, skill method, quest step...) come with a checklist of gear to wear and items to bring, plus where to go. Press **Track guide** to pin it:
     - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank.
     - An in-game overlay shows the same checklist with distance and direction (toggle it with *In-game → Show guide checklist in game*).
-    - The target gets a world map marker (orange = OSRS Wiki coordinates, grey = AI estimate), plus a hint arrow, outline and line to the NPC or spot when you're nearby.
+    - The pinned panel shows done steps in green and the current step in orange; use **Prev** / **Next** or click a step to move.
+    - The target gets a world map marker (cyan = OSRS Wiki coordinates, grey = AI estimate) and a minimap arrow with the distance. When you're nearby, the NPC or spot is outlined, with a hint arrow and a walkable path that goes around buildings and through doors.
 - Ask follow-ups in the chat; **New chat** starts over. Answers are formatted for the narrow sidebar.
 - Or just type a question like:
     - "What's the best setup for Barrows with my stats?"

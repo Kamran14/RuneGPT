@@ -3,6 +3,7 @@ package com.kamrant.runegpt.service;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.kamrant.runegpt.llm.GPTClient;
+import com.kamrant.runegpt.llm.StreamListener;
 import com.kamrant.runegpt.model.AssistantResponse;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.LlmReply;
@@ -45,13 +46,21 @@ public class AssistantService {
 
    /** Blocking: LLM and wiki calls. */
    public AssistantResponse ask(final String prompt, final PlayerSnapshot snapshot) {
+      return ask(prompt, snapshot, null);
+   }
+
+   /**
+    * Like {@link #ask(String, PlayerSnapshot)}, but passes the readable answer text to {@code display} while the
+    * reply streams in (JSON wrapping removed). The returned response is still the fully parsed and verified one.
+    */
+   public AssistantResponse ask(final String prompt, final PlayerSnapshot snapshot, final StreamListener display) {
       final WorldTarget promptTarget = NearestTargetResolver.resolveFromText(prompt, snapshot, lookup);
       // Ground answers in official quest + wiki data, nearest coordinates from the player, and live GE prices.
       final String context = snapshot.toContext()
          + NearestTargetResolver.locationFactsFor(prompt, snapshot, lookup)
          + quests.wikiFactsFor(prompt, snapshot)
          + prices.priceFactsFor(prompt, snapshot);
-      final LlmReply reply = gpt.ask(prompt, context);
+      final LlmReply reply = gpt.ask(prompt, context, display == null ? null : answerStream(display));
       if (!reply.isSuccess()) {
          return AssistantResponse.failure(reply.getText());
       }
@@ -82,5 +91,25 @@ public class AssistantService {
          ResponseParser.suggestions(json, answer, guide != null, MAX_SUGGESTIONS));
       gpt.remember(prompt, answer);
       return AssistantResponse.of(answer, guide, suggestions);
+   }
+
+   /** Turns raw streamed reply text into the answer text the player should see so far. */
+   private static StreamListener answerStream(final StreamListener display) {
+      final StreamingAnswerExtractor extractor = new StreamingAnswerExtractor();
+      return new StreamListener() {
+         @Override
+         public void onText(final String delta) {
+            final String visible = extractor.feed(delta);
+            if (!visible.isEmpty()) {
+               display.onText(visible);
+            }
+         }
+
+         @Override
+         public void onReset() {
+            extractor.reset();
+            display.onReset();
+         }
+      };
    }
 }

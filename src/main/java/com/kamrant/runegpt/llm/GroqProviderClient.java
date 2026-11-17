@@ -36,16 +36,52 @@ public class GroqProviderClient implements LLMProviderClient {
    @Override
    public Request buildRequest(final String apiKey, final String system, final List<ChatMessage> history,
       final RuneGPTConfig config, final Gson gson) {
+      return build(apiKey, system, history, config, gson, false);
+   }
+
+   @Override
+   public Request buildStreamRequest(final String apiKey, final String system, final List<ChatMessage> history,
+      final RuneGPTConfig config, final Gson gson) {
+      return build(apiKey, system, history, config, gson, true);
+   }
+
+   private Request build(final String apiKey, final String system, final List<ChatMessage> history,
+      final RuneGPTConfig config, final Gson gson, final boolean stream) {
       final String model = config.groqModel() == null || config.groqModel().trim().isEmpty()
          ? LLMConfig.GROQ_DEFAULT_MODEL
          : config.groqModel().trim();
       final GroqRequest body = GroqRequest.create(
          model, system, history, config.temperature(), LLMConfig.GROQ_MAX_TOKENS);
+      if (stream) {
+         body.streaming();
+      }
       return new Request.Builder()
          .url(LLMConfig.GROQ_URL)
          .addHeader(LLMConfig.HEADER_AUTHORIZATION, LLMConfig.BEARER_PREFIX + apiKey)
          .post(RequestBody.create(JSON, gson.toJson(body)))
          .build();
+   }
+
+   /** OpenAI-style chunks: choices[0].delta.content, finish_reason "length" when cut off, data: [DONE] at the end. */
+   @Override
+   public String streamDelta(final JsonObject event, final StreamState state) throws ProviderException {
+      final String error = LLMProviderClient.streamError(event);
+      if (error != null) {
+         throw new ProviderException("stream error: " + error);
+      }
+      final JsonArray choices = event.getAsJsonArray("choices");
+      if (choices == null || choices.size() == 0) {
+         return "";
+      }
+      final JsonObject choice = choices.get(0).getAsJsonObject();
+      final JsonElement finish = choice.get("finish_reason");
+      if (finish != null && !finish.isJsonNull() && "length".equals(finish.getAsString())) {
+         state.markTruncated();
+      }
+      final JsonObject delta = choice.getAsJsonObject("delta");
+      final JsonElement content = delta == null ? null : delta.get("content");
+      // Reasoning models may also send delta.reasoning; only the answer content is shown.
+      return content == null || content.isJsonNull() ? "" : content.getAsString();
    }
 
    @Override

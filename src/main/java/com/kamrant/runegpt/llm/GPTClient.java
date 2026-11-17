@@ -16,8 +16,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -46,6 +48,8 @@ public class GPTClient {
    private final StarterProviderClient starter = new StarterProviderClient();
    private final ConversationHistory history = new ConversationHistory();
    private final Map<LLMProvider, Instant> cooldownUntil = new EnumMap<>(LLMProvider.class);
+   // Providers that rejected a streaming request this session; they get normal requests from then on.
+   private final Set<LLMProvider> streamingRejected = EnumSet.noneOf(LLMProvider.class);
 
    @Inject
    public GPTClient(final RuneGPTConfig config, final OkHttpClient httpClient, final Gson gson, final KeyVault vault) {
@@ -65,8 +69,17 @@ public class GPTClient {
     * recorded until the caller has parsed the reply: see {@link #remember}.
     */
    public LlmReply ask(final String prompt, final String playerContext) {
+      return ask(prompt, playerContext, null);
+   }
+
+   /**
+    * Like {@link #ask(String, String)}, but streams the reply text to {@code listener} as it arrives (when the
+    * provider supports it). If a provider fails mid-stream the listener is reset and the next provider starts
+    * over, so the player still only sees an error when every provider fails.
+    */
+   public LlmReply ask(final String prompt, final String playerContext, final StreamListener listener) {
       final String system = Prompts.SYSTEM + Prompts.PLAYER_CONTEXT_HEADER + playerContext;
-      return send(system, history.withPendingPrompt(prompt));
+      return send(system, history.withPendingPrompt(prompt), listener);
    }
 
    /** Records a finished exchange. Store the readable answer, not raw JSON, to keep the history small. */
@@ -79,7 +92,7 @@ public class GPTClient {
     * steps). Same provider failover as {@link #ask}.
     */
    public LlmReply completeOnce(final String system, final String prompt) {
-      return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)));
+      return send(system, Collections.singletonList(new ChatMessage(ChatRole.USER, prompt)), null);
    }
 
    /**
@@ -98,7 +111,7 @@ public class GPTClient {
       return null;
    }
 
-   private LlmReply send(final String system, final List<ChatMessage> messages) {
+   private LlmReply send(final String system, final List<ChatMessage> messages, final StreamListener listener) {
       // Keys are decrypted here, per request, and only kept in this local map for the duration of the call.
       final Map<LLMProvider, String> keys = new EnumMap<>(LLMProvider.class);
       final List<String> undecryptable = new ArrayList<>();
@@ -113,17 +126,25 @@ public class GPTClient {
       final List<String> failures = new ArrayList<>();
       for (final LLMProviderClient client : candidates) {
          final LLMProvider provider = client.provider();
+         final String key = keys.getOrDefault(provider, "");
+         final TrackingStreamListener tracking = listener == null ? null : new TrackingStreamListener(listener);
          try {
-            final String reply = client.send(httpClient, gson, keys.getOrDefault(provider, ""), system, messages, config);
+            final String reply = request(client, key, system, messages, tracking);
             clearCooldown(provider);
             return LlmReply.success(reply, provider);
          } catch (final ProviderException e) {
+            if (tracking != null && tracking.hasText()) {
+               listener.onReset();
+            }
             log.warn("RuneGPT: {} failed, trying next provider: {}", provider, e.getMessage());
             failures.add(e.getMessage());
             if (e.isQuotaExhausted()) {
                startCooldown(provider, e.getRetryAfter());
             }
          } catch (final RuntimeException e) {
+            if (tracking != null && tracking.hasText()) {
+               listener.onReset();
+            }
             // Unexpected response shape etc. Don't let one provider's bug block the others.
             log.warn("RuneGPT: {} returned an unreadable response", provider, e);
             failures.add(LLMConfig.ERR_UNREADABLE);
@@ -137,6 +158,44 @@ public class GPTClient {
          failures.add(String.format(Prompts.NOTICE_UNDECRYPTABLE_KEYS, String.join(", ", undecryptable)));
       }
       return LlmReply.failure(Prompts.ERR_ALL_PROVIDERS_UNAVAILABLE + String.join("\n", failures));
+   }
+
+   /**
+    * One provider attempt: streamed when a listener is given and the provider streams, otherwise a normal
+    * request. If the streaming request itself is rejected (HTTP 400/404/415/422, before any text), it is retried
+    * once without streaming; when that works, the provider isn't asked to stream again this session.
+    */
+   private String request(final LLMProviderClient client, final String key, final String system,
+      final List<ChatMessage> messages, final TrackingStreamListener listener) throws ProviderException {
+      final LLMProvider provider = client.provider();
+      if (listener == null || !canStream(provider)) {
+         return client.send(httpClient, gson, key, system, messages, config);
+      }
+      try {
+         return client.stream(httpClient, gson, key, system, messages, config, listener);
+      } catch (final ProviderException e) {
+         if (listener.hasText() || e.isQuotaExhausted() || !isStreamingRejection(e.getHttpStatus())) {
+            throw e;
+         }
+         // Maybe the provider doesn't accept streaming (e.g. with JSON mode), maybe the request is bad for
+         // another reason (e.g. an invalid key). Only stop streaming to it if a normal request then works.
+         final String reply = client.send(httpClient, gson, key, system, messages, config);
+         log.info("RuneGPT: {} rejected streaming ({}), using normal requests", provider, e.getMessage());
+         rejectStreaming(provider);
+         return reply;
+      }
+   }
+
+   private static boolean isStreamingRejection(final int status) {
+      return status == 400 || status == 404 || status == 415 || status == 422;
+   }
+
+   private synchronized boolean canStream(final LLMProvider provider) {
+      return !streamingRejected.contains(provider);
+   }
+
+   private synchronized void rejectStreaming(final LLMProvider provider) {
+      streamingRejected.add(provider);
    }
 
    /**
