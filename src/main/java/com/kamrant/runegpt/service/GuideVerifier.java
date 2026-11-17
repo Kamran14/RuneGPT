@@ -115,8 +115,10 @@ public class GuideVerifier {
          removed++;
       }
       // Monsters have many spawns and the wiki's first one may be far from the guide's spot: when the NPC's
-      // coordinates disagree with the location, keep the NPC as name-only (still highlighted in the scene).
+      // coordinates disagree with a verified location, keep the NPC as name-only (still highlighted in the
+      // scene). Against an AI-estimated location the NPC's wiki coordinates win instead (see navigationTarget).
       if (npc != null && npc.getPoint() != null && location != null && location.getPoint() != null
+         && !location.isApproximate()
          && npc.getPoint().distanceTo2D(location.getPoint()) > MAX_NPC_LOCATION_DISTANCE) {
          npc = WorldTarget.named(npc.getName());
       }
@@ -176,12 +178,17 @@ public class GuideVerifier {
       if (stepTarget != null && stepTarget.getPoint() != null) {
          return stepTarget;
       }
+      // The place isn't resolvable to coordinates. Only keep it (and the AI's coordinate estimate) if it's a real
+      // place on the wiki; an invented place name is dropped rather than shown with made-up coordinates.
+      if (!wiki.exists(name)) {
+         return null;
+      }
       final int x = ResponseParser.intOr(loc, "x", 0);
       final int y = ResponseParser.intOr(loc, "y", 0);
       if (plausible(x, y)) {
          return new WorldTarget(name, new WorldPoint(x, y, ResponseParser.intOr(loc, "plane", 0)), TargetSource.AI_ESTIMATE);
       }
-      return wiki.exists(name) ? WorldTarget.named(name) : null;
+      return WorldTarget.named(name);
    }
 
    /** The NPC with closest scene/wiki coordinates when available; null if the wiki has no page for it. */

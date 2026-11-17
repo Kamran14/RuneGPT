@@ -81,6 +81,23 @@ public final class GuidePlan {
       return npc;
    }
 
+   /**
+    * Where to send the player: wiki-verified coordinates first (the location, then the NPC), and an AI-estimated
+    * location only when nothing verified is available. Falls back to a name-only target, or null.
+    */
+   public WorldTarget navigationTarget() {
+      if (location != null && location.getPoint() != null && !location.isApproximate()) {
+         return location;
+      }
+      if (npc != null && npc.getPoint() != null) {
+         return npc;
+      }
+      if (location != null && location.getPoint() != null) {
+         return location;
+      }
+      return location != null ? location : npc;
+   }
+
    /** How many AI-suggested items/NPCs/places were dropped because the wiki has no such thing. */
    public int getRemovedUnverified() {
       return removedUnverified;

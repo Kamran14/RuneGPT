@@ -17,6 +17,17 @@ An AI assistant for Old School RuneScape in RuneLite's sidebar. Ask about quests
 
 ### Showcase
 
+In game:
+
+<table>
+  <tr>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/ingame_quest_sections.png" width="234" alt="Quest Helper section suggesting quests to continue"><br><sub>Quest Helper picks up your quests in progress</sub></td>
+    <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/ingame_path_overlay.png" width="560" alt="In-game guide overlay with a walkable path drawn on the ground and the minimap"><br><sub>Tracked guide: checklist overlay, walkable path and minimap route</sub></td>
+  </tr>
+</table>
+
+Panels and overlay:
+
 <table>
   <tr>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/panel_chat.png" width="242" alt="Chat answer with a guide checklist and Start task buttons"><br><sub>Answer, checklist and guided tasks</sub></td>
@@ -25,6 +36,9 @@ An AI assistant for Old School RuneScape in RuneLite's sidebar. Ask about quests
   <tr>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/tracked_guide.png" width="242" alt="Pinned tracked guide with step progress"><br><sub>Tracked guide with step progress</sub></td>
     <td align="center" valign="top"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/overlay_checklist.png" width="225" alt="In-game checklist overlay"><br><sub>In-game checklist overlay</sub></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" colspan="2"><img src="https://raw.githubusercontent.com/Kamran14/RuneGPT/refs/heads/master/imgs/pathfinder.png" width="500" alt="Top-down view of a walkable path around a pond and in through a closed door"><br><sub>Collision-aware path finder: routes around water, walls and objects, and through doors you can open (top-down view)</sub></td>
   </tr>
 </table>
 

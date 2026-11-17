@@ -69,8 +69,9 @@ public final class Prompts {
          + "- required_items: things to carry for current_step onward (don't list items only needed for already-"
          + "completed steps). recommended_gear: things to wear or wield, at most one per slot, matched to the "
          + "player's levels and what they own.\n"
-         + "- location x/y/plane: your best estimate of the OSRS world coordinates of the spot; omit x and y "
-         + "if you don't know them.\n";
+         + "- location name: the exact OSRS Wiki page name of a real place (e.g. \"Otto's Grotto\"), never a "
+         + "made-up description. x/y/plane: your best estimate of the OSRS world coordinates of the spot; omit x "
+         + "and y if you don't know them. Never write coordinates in steps or answer text.\n";
 
    /** Header before the per-request player data block. */
    public static final String PLAYER_CONTEXT_HEADER = RESPONSE_FORMAT + "\nCurrent player data:\n";

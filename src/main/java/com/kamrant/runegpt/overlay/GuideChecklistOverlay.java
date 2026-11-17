@@ -95,7 +95,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
             .build());
       }
 
-      final WorldTarget where = plan.getLocation() != null ? plan.getLocation() : plan.getNpc();
+      final WorldTarget where = plan.navigationTarget();
       if (where != null) {
          panelComponent.getChildren().add(LineComponent.builder()
             .left(UiTheme.LBL_GO_TO + ": " + TextUtils.shorten(where.getName(), MAX_NAME_CHARS)
@@ -107,7 +107,7 @@ public class GuideChecklistOverlay extends OverlayPanel {
             panelComponent.getChildren().add(LineComponent.builder().left(dir).leftColor(UiTheme.OVERLAY_MUTED).build());
          }
       }
-      if (plan.getNpc() != null && plan.getLocation() != null) {
+      if (plan.getNpc() != null && where != plan.getNpc()) {
          panelComponent.getChildren().add(LineComponent.builder()
             .left(UiTheme.LBL_FIND + ": " + TextUtils.shorten(plan.getNpc().getName(), MAX_NAME_CHARS))
             .leftColor(UiTheme.ACCENT_CYAN)

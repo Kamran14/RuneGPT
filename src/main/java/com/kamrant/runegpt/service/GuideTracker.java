@@ -71,10 +71,8 @@ public class GuideTracker {
       if (stepFacility != null && stepFacility.getPoint() != null) {
          return stepFacility;
       }
-      final WorldTarget location = plan.getLocation();
-      final WorldTarget npc = plan.getNpc();
-      return location != null && location.getPoint() != null ? location
-         : npc != null && npc.getPoint() != null ? npc : null;
+      final WorldTarget target = plan.navigationTarget();
+      return target != null && target.getPoint() != null ? target : null;
    }
 
    /** Start tracking (replaces any current guide). Safe from any thread. */
