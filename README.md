@@ -68,6 +68,7 @@ Panels and overlay:
     - An in-game overlay shows the same checklist with distance and direction (toggle it with *In-game → Show guide checklist in game*).
     - The pinned panel shows done steps in green and the current step in orange; use **Prev** / **Next** or click a step to move.
     - The target gets a world map marker (cyan = OSRS Wiki coordinates, grey = AI estimate) and a minimap arrow with the distance. When you're nearby, the NPC or spot is outlined, with a hint arrow and a walkable path that goes around buildings and through doors.
+    - **Works with [Shortest Path](https://runelite.net/plugin-hub/show/shortest-path):** if you have that Plugin Hub plugin, RuneGPT sends it the destination (OSRS Wiki coordinates only), so it draws the full route with teleports and transports using your Shortest Path settings. RuneGPT clears the route when you stop tracking, but never a path you set yourself. Turn this off with *In-game → Route with Shortest Path plugin*.
 - Ask follow-ups in the chat; **New chat** starts over. Answers are formatted for the narrow sidebar.
 - Or just type a question like:
     - "What's the best setup for Barrows with my stats?"

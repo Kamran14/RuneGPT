@@ -13,6 +13,7 @@ import com.kamrant.runegpt.service.BankStore;
 import com.kamrant.runegpt.service.GuideTracker;
 import com.kamrant.runegpt.service.GuideVerifier;
 import com.kamrant.runegpt.service.KeyVault;
+import com.kamrant.runegpt.service.ShortestPathBridge;
 import com.kamrant.runegpt.service.TargetHighlighter;
 import com.kamrant.runegpt.llm.GPTClient;
 import com.kamrant.runegpt.ui.GPTPanel;
@@ -34,6 +35,8 @@ import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.events.ConfigChanged;
+import net.runelite.client.events.PluginChanged;
+import net.runelite.client.events.PluginMessage;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -92,6 +95,9 @@ public class RuneGPT extends Plugin {
 	private GuideVerifier guideVerifier;
 
 	@Inject
+	private ShortestPathBridge shortestPath;
+
+	@Inject
 	private GPTClient gptClient;
 
 	@Inject
@@ -138,6 +144,8 @@ public class RuneGPT extends Plugin {
 		overlayManager.add(guideChecklistOverlay);
 		overlayManager.add(worldMapGuideOverlay);
 		gptPanel.refreshGuides();
+		// Find out whether the Shortest Path plugin is there to draw full routes.
+		shortestPath.probe();
 	}
 
 	@Override
@@ -168,7 +176,25 @@ public class RuneGPT extends Plugin {
 	}
 
 	@Subscribe
+	public void onPluginMessage(final PluginMessage event) {
+		shortestPath.onPluginMessage(event);
+	}
+
+	@Subscribe
+	public void onPluginChanged(final PluginChanged event) {
+		// Shortest Path may have just been installed, turned on or turned off.
+		if (event.getPlugin() != this) {
+			shortestPath.onPluginsChanged();
+			guideTracker.refreshRoute();
+		}
+	}
+
+	@Subscribe
 	public void onConfigChanged(final ConfigChanged event) {
+		if (RuneGPTConfig.GROUP.equals(event.getGroup())
+			&& RuneGPTConfig.KEY_USE_SHORTEST_PATH.equals(event.getKey())) {
+			guideTracker.refreshRoute();
+		}
 		if (RuneGPTConfig.GROUP.equals(event.getGroup()) && RuneGPTConfig.KEY_REMEMBER_BANK.equals(event.getKey())
 			&& !config.rememberBank()) {
 			bankSaveDirty = false;

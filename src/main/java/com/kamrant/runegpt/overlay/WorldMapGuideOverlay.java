@@ -2,6 +2,7 @@ package com.kamrant.runegpt.overlay;
 
 import com.kamrant.runegpt.model.WorldTarget;
 import com.kamrant.runegpt.service.GuideTracker;
+import com.kamrant.runegpt.service.ShortestPathBridge;
 import com.kamrant.runegpt.service.TargetHighlighter;
 import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.BasicStroke;
@@ -58,14 +59,16 @@ public class WorldMapGuideOverlay extends Overlay {
    private final GuideTracker tracker;
    private final TargetHighlighter highlighter;
    private final WorldMapOverlay worldMapOverlay;
+   private final ShortestPathBridge shortestPath;
 
    @Inject
    public WorldMapGuideOverlay(final Client client, final GuideTracker tracker, final TargetHighlighter highlighter,
-      final WorldMapOverlay worldMapOverlay) {
+      final WorldMapOverlay worldMapOverlay, final ShortestPathBridge shortestPath) {
       this.client = client;
       this.tracker = tracker;
       this.highlighter = highlighter;
       this.worldMapOverlay = worldMapOverlay;
+      this.shortestPath = shortestPath;
       setPosition(OverlayPosition.DYNAMIC);
       setPriority(PRIORITY_HIGH);
       setLayer(OverlayLayer.ABOVE_WIDGETS);
@@ -73,6 +76,10 @@ public class WorldMapGuideOverlay extends Overlay {
 
    @Override
    public Dimension render(final Graphics2D g) {
+      // The Shortest Path plugin is drawing the full route (world map, minimap and scene): don't draw a second one.
+      if (shortestPath.isRouting()) {
+         return null;
+      }
       final WorldTarget target = tracker.getMapTarget();
       final WorldPoint dest = target != null ? target.getPoint() : highlighter.getDestination();
       final Player local = client.getLocalPlayer();

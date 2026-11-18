@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.overlay;
 
+import com.kamrant.runegpt.service.ShortestPathBridge;
 import com.kamrant.runegpt.service.TargetHighlighter;
 import com.kamrant.runegpt.ui.UiTheme;
 import java.awt.BasicStroke;
@@ -10,6 +11,7 @@ import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Shape;
 import java.awt.Stroke;
+import java.util.Collections;
 import java.util.List;
 import javax.inject.Inject;
 import net.runelite.api.Client;
@@ -55,18 +57,22 @@ public class TargetHighlightOverlay extends Overlay {
 
    private final Client client;
    private final TargetHighlighter highlighter;
+   private final ShortestPathBridge shortestPath;
 
    @Inject
-   public TargetHighlightOverlay(final Client client, final TargetHighlighter highlighter) {
+   public TargetHighlightOverlay(final Client client, final TargetHighlighter highlighter,
+      final ShortestPathBridge shortestPath) {
       this.client = client;
       this.highlighter = highlighter;
+      this.shortestPath = shortestPath;
       setPosition(OverlayPosition.DYNAMIC);
       setLayer(OverlayLayer.ABOVE_SCENE);
    }
 
    @Override
    public Dimension render(final Graphics2D g) {
-      final List<WorldPoint> path = highlighter.getWalkablePath();
+      // When the Shortest Path plugin draws the route, keep only the target outline, not a second walking path.
+      final List<WorldPoint> path = shortestPath.isRouting() ? Collections.emptyList() : highlighter.getWalkablePath();
       if (path.isEmpty() && !highlighter.isCloseEnough()) {
          return null;
       }

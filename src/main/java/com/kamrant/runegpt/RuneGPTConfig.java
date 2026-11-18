@@ -18,6 +18,7 @@ public interface RuneGPTConfig extends Config {
 	/** Settings holding API keys. They're stored encrypted (see KeyVault). */
 	String[] KEY_SETTINGS = {KEY_GEMINI, KEY_CLAUDE, KEY_GROQ};
 	String KEY_REMEMBER_BANK = "rememberBank";
+	String KEY_USE_SHORTEST_PATH = "useShortestPath";
 
 	/** What leaves the client, and where. Shown on the providers section; also in the plugin description and README. */
 	String DATA_DISCLOSURE = "Data sent: your questions, account type, skill levels, quest progress, inventory, worn items, bank "
@@ -161,6 +162,18 @@ public interface RuneGPTConfig extends Config {
 		section = inGameSection
 	)
 	default boolean rememberBank() {
+		return true;
+	}
+
+	@ConfigItem(
+		keyName = KEY_USE_SHORTEST_PATH,
+		name = "Route with Shortest Path plugin",
+		description = "If the Shortest Path plugin is installed, send a tracked guide's destination to it so it draws "
+			+ "the full route, including teleports. RuneGPT's own minimap arrow is used when it isn't installed.",
+		position = 2,
+		section = inGameSection
+	)
+	default boolean useShortestPath() {
 		return true;
 	}
 }

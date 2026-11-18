@@ -35,6 +35,7 @@ public class GuideTracker {
    private final BankCache bankCache;
    private final TargetHighlighter highlighter;
    private final WorldMapPointManager worldMapPointManager;
+   private final ShortestPathBridge shortestPath;
 
    // The panel; replaced on every plugin start and cleared on shutdown.
    private volatile Consumer<GuidePlan> listener;
@@ -43,13 +44,15 @@ public class GuideTracker {
 
    @Inject
    public GuideTracker(final Client client, final ClientThread clientThread, final ItemManager itemManager,
-      final BankCache bankCache, final TargetHighlighter highlighter, final WorldMapPointManager worldMapPointManager) {
+      final BankCache bankCache, final TargetHighlighter highlighter, final WorldMapPointManager worldMapPointManager,
+      final ShortestPathBridge shortestPath) {
       this.client = client;
       this.clientThread = clientThread;
       this.itemManager = itemManager;
       this.bankCache = bankCache;
       this.highlighter = highlighter;
       this.worldMapPointManager = worldMapPointManager;
+      this.shortestPath = shortestPath;
    }
 
    /** Sets (or clears, with null) who is told about changes to the tracked guide. */
@@ -121,6 +124,7 @@ public class GuideTracker {
       clientThread.invokeLater(() -> {
          active = null;
          clearNavigation();
+         shortestPath.release();
          notifyListeners();
       });
    }
@@ -184,6 +188,22 @@ public class GuideTracker {
             .build();
          worldMapPointManager.add(mapPoint);
       }
+      // Shortest Path (if installed) draws the full route. Only verified destinations: an AI estimate could send
+      // the player across the map to the wrong place.
+      shortestPath.show(mapTarget == null || mapTarget.isApproximate() ? null : mapTarget.getPoint());
+   }
+
+   /** Re-sends or withdraws the Shortest Path route, e.g. after its setting changed. Safe from any thread. */
+   public void refreshRoute() {
+      clientThread.invokeLater(() -> {
+         final GuidePlan plan = active;
+         if (plan == null) {
+            return;
+         }
+         // With the setting off, show() withdraws our route instead.
+         final WorldTarget t = getMapTarget();
+         shortestPath.show(t == null || t.isApproximate() ? null : t.getPoint());
+      });
    }
 
    private void clearNavigation() {
@@ -214,5 +234,6 @@ public class GuideTracker {
    public void shutdown() {
       active = null;
       clearNavigation();
+      shortestPath.releaseNow();
    }
 }
