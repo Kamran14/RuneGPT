@@ -95,6 +95,7 @@ public class AssistantService {
       }
       final List<TaskSuggestion> suggestions = snapshot.filterValidSuggestions(
          ResponseParser.suggestions(json, answer, guide != null, MAX_SUGGESTIONS));
+      answer = HardcoreWarning.apply(snapshot.getAccountMode(), prompt, answer, guide, suggestions);
       gpt.remember(prompt, answer);
       return AssistantResponse.of(answer, guide, suggestions);
    }

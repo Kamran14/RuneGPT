@@ -1,5 +1,7 @@
 package com.kamrant.runegpt.ui;
 
+import com.kamrant.runegpt.model.AccountMode;
+
 import java.awt.Color;
 import net.runelite.client.ui.ColorScheme;
 
@@ -78,5 +80,32 @@ public final class UiTheme {
    public static final String NOTE_OPEN_BANK_GEAR = "Open your bank once so I can include banked gear.";
    public static final String NOTE_LOGIN_SUGGESTIONS = "Log in to get suggestions based on your stats.";
    public static final String NOTE_ALL_QUESTS_DONE = "All quests completed! Ask about any quest below.";
+   /** Added to answers about deadly content for Hardcore accounts when the AI didn't include its own warning. */
+   public static final String NOTE_HARDCORE_RISK = "**Hardcore risk:** this involves combat that can kill you. "
+      + "Bring food and an emergency teleport, and leave before your supplies run out.";
+
+   /** Plain-text version for the task helper's tip line. */
+   public static final String TIP_HARDCORE_RISK = "Hardcore risk: bring food and an emergency teleport, and leave "
+      + "early if supplies run low.";
+
+   /** One-line note above the guide sections for Ironman accounts; null for a normal account. */
+   public static String accountNote(final AccountMode mode) {
+      switch (mode) {
+         case IRONMAN:
+            return "Ironman: advice skips the GE and trading.";
+         case ULTIMATE_IRONMAN:
+            return "Ultimate Ironman: advice skips the GE, trading and banking.";
+         case HARDCORE_IRONMAN:
+            return "Hardcore Ironman: advice skips the GE and trading, and warns about deadly content.";
+         case GROUP_IRONMAN:
+         case UNRANKED_GROUP_IRONMAN:
+            return mode.getDisplayName() + ": advice skips the GE; trades stay in your group.";
+         case HARDCORE_GROUP_IRONMAN:
+            return "Hardcore Group Ironman: advice skips the GE and warns about deadly content.";
+         default:
+            return null;
+      }
+   }
+
    public static final String NOTE_ALL_SKILLS_MAXED = "All skills are 99! Ask about post-99 XP or pet hunting below.";
 }

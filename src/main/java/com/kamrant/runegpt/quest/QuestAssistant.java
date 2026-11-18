@@ -308,7 +308,8 @@ public class QuestAssistant {
       sb.append("Player location: ").append(p.locationText()).append('\n');
       sb.append("Inventory: ").append(PlayerSnapshot.items(p.getInventory())).append('\n');
       sb.append("Wearing: ").append(PlayerSnapshot.items(p.getEquipment())).append('\n');
-      sb.append("Bank: ").append(p.isBankKnown() ? p.bankText(quest, fullBank) : "unknown (not opened yet)").append('\n');
+      sb.append("Account type: ").append(Prompts.accountContext(p.getAccountMode())).append('\n');
+      sb.append(p.bankLine(quest, fullBank)).append('\n');
       sb.append(itemCheck);
       if (completedStep != null) {
          sb.append(String.format(Prompts.QUEST_COMPLETED_STEP, completedStep));

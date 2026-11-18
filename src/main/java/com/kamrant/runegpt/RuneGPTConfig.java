@@ -20,7 +20,7 @@ public interface RuneGPTConfig extends Config {
 	String KEY_REMEMBER_BANK = "rememberBank";
 
 	/** What leaves the client, and where. Shown on the providers section; also in the plugin description and README. */
-	String DATA_DISCLOSURE = "Data sent: your questions, skill levels, quest progress, inventory, worn items, bank "
+	String DATA_DISCLOSURE = "Data sent: your questions, account type, skill levels, quest progress, inventory, worn items, bank "
 		+ "contents (once you open your bank) and location are sent to the AI provider(s) you set a key for "
 		+ "(Google Gemini, Anthropic Claude, Groq). Quest and item names are looked up on the OSRS Wiki. "
 		+ "API keys are stored encrypted in your RuneLite settings (the decryption key stays on this computer) and "

@@ -55,6 +55,8 @@ public class GuidesView extends JPanel {
    private final Set<String> expandedCards = new HashSet<>();
 
    private PlayerSnapshot snapshot = PlayerSnapshot.LOGGED_OUT;
+   // Detected account type (e.g. "Ironman: advice skips the GE"); hidden for normal accounts and when logged out.
+   private final HtmlPane accountNote = new HtmlPane(ColorScheme.BRAND_ORANGE, FontManager.getRunescapeSmallFont());
 
    public GuidesView(final GuideStore store, final BiConsumer<String, String> onAsk,
       final BiConsumer<String, Map<String, String>> onStartTask,
@@ -67,6 +69,11 @@ public class GuidesView extends JPanel {
       this.onGearOptimize = onGearOptimize;
       setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
       setOpaque(false);
+
+      accountNote.setBorder(new EmptyBorder(0, 2, 6, 2));
+      accountNote.setAlignmentX(Component.LEFT_ALIGNMENT);
+      accountNote.setVisible(false);
+      add(accountNote);
 
       for (final GuideCategory category : GuideCategory.values()) {
          final CollapsibleSection section = new CollapsibleSection(category.getSectionName(), () -> toggle(category));
@@ -96,6 +103,11 @@ public class GuidesView extends JPanel {
    }
 
    private void render() {
+      final String note = snapshot.isLoggedIn() ? UiTheme.accountNote(snapshot.getAccountMode()) : null;
+      accountNote.setVisible(note != null);
+      if (note != null) {
+         accountNote.setPlainText(note);
+      }
       for (final GuideCategory category : GuideCategory.values()) {
          final CollapsibleSection section = sections.get(category);
          if (category == GuideCategory.QUESTS && !snapshot.getQuestsInProgress().isEmpty()) {
@@ -336,7 +348,7 @@ public class GuidesView extends JPanel {
       }
    }
 
-   private static String exampleInterest(final GuideCategory category) {
+   private String exampleInterest(final GuideCategory category) {
       switch (category) {
          case QUESTS:
             return "unlock Fairy rings";
@@ -347,7 +359,7 @@ public class GuidesView extends JPanel {
          case SKILLING:
             return "train Herblore cheaply";
          case MONEY:
-            return "flipping on the GE";
+            return snapshot.getAccountMode().isIronman() ? "best Ironman money maker" : "flipping on the GE";
          default:
             return "Tempoross rewards";
       }

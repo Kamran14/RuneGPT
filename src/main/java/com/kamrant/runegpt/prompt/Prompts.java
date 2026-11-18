@@ -1,5 +1,7 @@
 package com.kamrant.runegpt.prompt;
 
+import com.kamrant.runegpt.model.AccountMode;
+
 /**
  * Every prompt sent to the LLM lives here: system prompts, the JSON response contracts, and the
  * user prompt templates behind the guide cards. Templates use {field} placeholders filled from the
@@ -13,6 +15,43 @@ public final class Prompts {
    // ---------------------------------------------------------------------------------------------
    // Main assistant
    // ---------------------------------------------------------------------------------------------
+
+   /**
+    * Account-type rules shared by every system prompt. The player data's "Account type" line (from
+    * {@link #accountContext}) is read from the game, so it is authoritative.
+    */
+   public static final String ACCOUNT_RULES =
+      "- Follow the Account type in the player data (read from the game). For any Ironman account, never tell "
+         + "them to buy, sell or trade items on the Grand Exchange or with other players (Group Ironmen may trade "
+         + "only within their group); give self-sufficient sources instead (monster drops, shops, skilling, "
+         + "minigames, quest rewards), and money makers that don't rely on selling to players. For them, Grand "
+         + "Exchange prices are item values only, never a cost to buy.\n"
+         + "- Ultimate Ironman can't use a bank: never tell them to bank, withdraw or deposit items.\n"
+         + "- Hardcore accounts (Hardcore Ironman, Hardcore Group Ironman): when the content can kill them "
+         + "(bosses, dangerous monsters, the Wilderness, quest fights), start the answer with a line beginning "
+         + "\"**Hardcore risk:**\" naming the main danger and a safe escape (e.g. an emergency teleport).\n";
+
+   /** The "Account type" line of the player context. */
+   public static String accountContext(final AccountMode mode) {
+      switch (mode) {
+         case IRONMAN:
+            return "Ironman (no Grand Exchange, no trading with other players)";
+         case ULTIMATE_IRONMAN:
+            return "Ultimate Ironman (no Grand Exchange, no trading, no bank: items must be carried, e.g. in "
+               + "the inventory, a looting bag or noted)";
+         case HARDCORE_IRONMAN:
+            return "Hardcore Ironman (no Grand Exchange, no trading; a dangerous death loses Hardcore status, so "
+               + "flag deadly content)";
+         case GROUP_IRONMAN:
+         case UNRANKED_GROUP_IRONMAN:
+            return mode.getDisplayName() + " (no Grand Exchange; may trade only with their group)";
+         case HARDCORE_GROUP_IRONMAN:
+            return "Hardcore Group Ironman (no Grand Exchange; may trade only with their group; dangerous deaths "
+               + "count against the group's Hardcore status, so flag deadly content)";
+         default:
+            return "Normal account (can use the Grand Exchange, trading and the bank)";
+      }
+   }
 
    /** System prompt for every chat and guide request. Replies must follow {@link #RESPONSE_FORMAT}. */
    public static final String SYSTEM =
@@ -36,7 +75,8 @@ public final class Prompts {
          + "- For item prices and gear/supply costs, use ONLY the numbers in VERIFIED LIVE GRAND EXCHANGE PRICES "
          + "below. Never guess or recall a GP price from memory; if an item's price isn't listed there, don't state "
          + "a GP price for it.\n"
-         + "- If the answer depends on data you don't have (e.g. bank contents), say so in one short line.\n\n";
+         + "- If the answer depends on data you don't have (e.g. bank contents), say so in one short line.\n"
+         + ACCOUNT_RULES + "\n";
 
    /** The JSON contract for {@link #SYSTEM}, appended to it. */
    public static final String RESPONSE_FORMAT =
@@ -85,7 +125,8 @@ public final class Prompts {
       "You are a tactical Old School RuneScape quest assistant. You are given the official OSRS Wiki text for "
          + "ONE quest and the player's current state. Use ONLY facts from the wiki text. Never invent steps, "
          + "items, NPCs or locations; if the wiki text doesn't say, leave the field empty. No filler or "
-         + "pleasantries. Respond with a single JSON object and nothing else (no markdown, no code fences).";
+         + "pleasantries. Respond with a single JSON object and nothing else (no markdown, no code fences).\n"
+         + ACCOUNT_RULES;
 
    /** Appended after the wiki text in a quest step request. */
    public static final String QUEST_STEP_INSTRUCTIONS =
@@ -115,7 +156,8 @@ public final class Prompts {
          + "activity (a minigame, money maker, skilling method, boss or monster task) using the OSRS Wiki data, "
          + "live Grand Exchange prices and the player's current stats, items and location. Never invent items, "
          + "NPCs or locations. No filler or pleasantries. Respond with a single JSON object and nothing else "
-         + "(no markdown, no code fences).";
+         + "(no markdown, no code fences).\n"
+         + ACCOUNT_RULES;
 
    public static final String TASK_STEP_INSTRUCTIONS =
       "Work out where the player is in setting up or doing this task from their stats, worn gear, inventory, "
@@ -158,6 +200,9 @@ public final class Prompts {
 
    /** Preferences picked with the quick-choice chips, appended to a guide prompt. */
    public static final String PREFERENCES = "\n\nMy preferences: %s.";
+
+   /** The bank line for an Ultimate Ironman, who has no bank. */
+   public static final String NO_BANK_CONTEXT = "Bank: none (Ultimate Ironman: cannot use a bank)";
 
    /** Player context when logged out. */
    public static final String LOGGED_OUT_CONTEXT = "The player is not logged in, so their stats are unknown.";

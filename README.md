@@ -62,6 +62,7 @@ Panels and overlay:
 - **Guided tasks**: answers can suggest quests, minigames, money makers, bosses or skilling methods with a **Start task** button, which walks you through them step by step. Completed quests and skill goals you've already reached aren't suggested.
 - **Gear optimizer** (Best gear I own for *monster* / *boss*): compares Melee, Ranged and Magic against the monster's defences, weakness and attributes from the [OSRS Wiki](https://oldschool.runescape.wiki) using the gear you actually have worn, in your inventory and in your bank, and filters out items your levels can't equip yet. Press **Track setup** to pin the winning loadout to the live checklist and in-game overlay.
 - **Live GE prices**: item prices in answers and guide checklists come from RuneLite's live Grand Exchange price data (with a missing-items cost total on checklists), so the AI never guesses GP numbers.
+- **Account type**: RuneGPT reads whether you're a normal account or an Ironman, Hardcore, Ultimate or Group Ironman. Ironmen aren't told to buy from the GE or trade, Ultimate Ironmen aren't told to bank, and Hardcore answers about deadly content start with a risk warning. The detected type is shown above the guide sections.
 - **Track guide**: answers that describe an activity (a boss, monster, skill method, quest step...) come with a checklist of gear to wear and items to bring, plus where to go. Press **Track guide** to pin it:
     - The checklist updates live as your inventory, equipment and bank change: **green** = ready, **yellow** = in your inventory but needs equipping, **red** = missing or still in the bank, **grey** ("check bank") = not on you and RuneGPT hasn't seen your bank yet.
     - An in-game overlay shows the same checklist with distance and direction (toggle it with *In-game → Show guide checklist in game*).
@@ -79,7 +80,7 @@ RuneGPT sends data off your computer only to do what you ask:
 
 | What | Where it goes |
 |---|---|
-| Your questions, skill levels, quest progress, inventory, worn items, bank contents (once you've opened your bank; see below) and location | The AI provider(s) you added a key for: Google Gemini, Anthropic Claude and/or Groq |
+| Your questions, account type (e.g. Ironman), skill levels, quest progress, inventory, worn items, bank contents (once you've opened your bank; see below) and location | The AI provider(s) you added a key for: Google Gemini, Anthropic Claude and/or Groq |
 | The same data, **only if you turn on the free starter service** | Pollinations (text.pollinations.ai), a free third-party service |
 | Quest, item, NPC and place names | The [OSRS Wiki](https://oldschool.runescape.wiki), to fetch guides and check that things exist |
 

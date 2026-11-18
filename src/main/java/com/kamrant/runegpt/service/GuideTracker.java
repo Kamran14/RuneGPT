@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.service;
 
+import com.kamrant.runegpt.model.AccountMode;
 import com.kamrant.runegpt.model.GuidePlan;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.WorldTarget;
@@ -13,6 +14,7 @@ import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
@@ -149,6 +151,10 @@ public class GuideTracker {
       final Map<String, Integer> bank = new LinkedHashMap<>();
       PlayerSnapshot.readContainer(client.getItemContainer(InventoryID.INV), itemManager, inventory);
       PlayerSnapshot.readContainer(client.getItemContainer(InventoryID.WORN), itemManager, equipment);
+      if (!AccountMode.fromVarbit(client.getVarbitValue(VarbitID.IRONMAN)).isBankAllowed()) {
+         // Ultimate Ironman: no bank, so anything not carried is missing.
+         return new ItemHoldings(inventory, equipment, bank, true, true);
+      }
       bankCache.getItems().forEach((id, qty) -> bank.merge(itemManager.getItemComposition(id).getName(), qty, Integer::sum));
       return new ItemHoldings(inventory, equipment, bank, bankCache.isKnown(), true);
    }

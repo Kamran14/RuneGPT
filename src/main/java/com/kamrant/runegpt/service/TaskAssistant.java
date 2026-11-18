@@ -192,7 +192,7 @@ public class TaskAssistant {
          .setNpcNearby(npcNearby)
          .setItems(prices.withPrices(ItemStatusResolver.resolve(items, player.holdings())))
          .setThen(ResponseParser.strings(json, "then", 4))
-         .setTip(ResponseParser.str(json, "tip"))
+         .setTip(HardcoreWarning.taskTip(player.getAccountMode(), trimmed, category, ResponseParser.str(json, "tip")))
          .setRemovedUnverified(removed);
    }
 

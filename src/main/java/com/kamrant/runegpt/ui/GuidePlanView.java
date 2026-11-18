@@ -83,7 +83,7 @@ public final class GuidePlanView {
       final long missingGp = PriceService.missingCost(plan.getItems());
       if (missingGp > 0) {
          CardWidgets.addLeft(p, Box.createVerticalStrut(3));
-         CardWidgets.addLeft(p, CardWidgets.small("Missing on GE: ~" + PriceService.formatShort(missingGp)));
+         CardWidgets.addLeft(p, CardWidgets.small("Missing items: ~" + PriceService.formatShort(missingGp) + " GE value"));
       }
 
       if (plan.getLocation() != null || plan.getNpc() != null) {

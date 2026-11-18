@@ -48,7 +48,7 @@ import net.runelite.client.util.ImageUtil;
 @PluginDescriptor(
 	name = "RuneGPT",
 	description = "AI assistant for quests, bossing, skilling and money making, with wiki-checked guides and a live "
-		+ "item checklist. Sends your questions, stats, quest progress, inventory, worn items, bank (once opened) "
+		+ "item checklist. Sends your questions, account type, stats, quest progress, inventory, worn items, bank (once opened) "
 		+ "and location to the AI provider you set a key for; looks up quest and item names on the OSRS Wiki.",
 	tags = {"ai", "gemini", "claude", "groq", "quest", "guide", "helper", "assistant", "wiki"}
 )

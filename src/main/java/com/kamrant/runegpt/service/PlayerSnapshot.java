@@ -1,5 +1,6 @@
 package com.kamrant.runegpt.service;
 
+import com.kamrant.runegpt.model.AccountMode;
 import com.kamrant.runegpt.model.ItemHoldings;
 import com.kamrant.runegpt.model.ItemSource;
 import com.kamrant.runegpt.model.OwnedGear;
@@ -42,6 +43,7 @@ import net.runelite.api.WorldView;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.gameval.InventoryID;
 import net.runelite.api.gameval.ItemID;
+import net.runelite.api.gameval.VarbitID;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.game.ItemStats;
 
@@ -69,6 +71,7 @@ public final class PlayerSnapshot {
    public static final PlayerSnapshot LOGGED_OUT = new PlayerSnapshot();
 
    private boolean loggedIn;
+   private AccountMode accountMode = AccountMode.MAIN;
    private final Map<Skill, Integer> levels = new EnumMap<>(Skill.class);
    private int combatLevel;
    private int totalLevel;
@@ -115,6 +118,7 @@ public final class PlayerSnapshot {
          s.levels.put(skill, client.getRealSkillLevel(skill));
       }
       s.totalLevel = client.getTotalLevel();
+      s.accountMode = AccountMode.fromVarbit(client.getVarbitValue(VarbitID.IRONMAN));
 
       final Player local = client.getLocalPlayer();
       if (local != null) {
@@ -170,6 +174,12 @@ public final class PlayerSnapshot {
       readGear(inv, itemManager, ItemSource.INVENTORY, gearById);
       s.cash += countCash(inv);
 
+      if (!s.accountMode.isBankAllowed()) {
+         // Ultimate Ironman has no bank: everything they own is carried, so the "bank" is known to be empty.
+         s.bankKnown = true;
+         s.ownedGear.addAll(gearById.values());
+         return s;
+      }
       s.bankKnown = bankCache.isKnown();
       s.bankFromEarlierSession = bankCache.isFromEarlierSession();
       s.bankSeenAt = bankCache.getSeenAt();
@@ -679,6 +689,14 @@ public final class PlayerSnapshot {
       return s;
    }
 
+   /** Sets the account mode on a snapshot built by {@link #ofStats} (for tests). */
+   public PlayerSnapshot withAccountMode(final AccountMode mode) {
+      if (this != LOGGED_OUT) {
+         accountMode = mode == null ? AccountMode.MAIN : mode;
+      }
+      return this;
+   }
+
    /** Player position as text for the LLM. */
    public String locationText() {
       if (location == null) {
@@ -702,6 +720,7 @@ public final class PlayerSnapshot {
          return Prompts.LOGGED_OUT_CONTEXT;
       }
       final StringBuilder sb = new StringBuilder();
+      sb.append("Account type: ").append(Prompts.accountContext(accountMode)).append('\n');
       sb.append("Combat level: ").append(combatLevel).append('\n');
       sb.append("Total level: ").append(totalLevel).append('\n');
       sb.append("Skills: ");
@@ -745,9 +764,24 @@ public final class PlayerSnapshot {
       sb.append("Location: ").append(locationText()).append('\n');
       sb.append("Wearing: ").append(items(equipment)).append('\n');
       sb.append("Inventory: ").append(items(inventory)).append('\n');
-      sb.append("Bank").append(bankKnown && bankFromEarlierSession ? " (" + savedBankAge() + ")" : "").append(": ")
-         .append(bankKnown ? bankText(question, fullBank) : "unknown (not opened yet)").append('\n');
+      sb.append(bankLine(question, fullBank)).append('\n');
       return sb.toString();
+   }
+
+   /**
+    * The "Bank: ..." line for prompts: the bank (labelled with its age when restored from an earlier session),
+    * "unknown" before it's been opened, or none for an Ultimate Ironman.
+    */
+   public String bankLine(final String question, final boolean fullBank) {
+      if (!accountMode.isBankAllowed()) {
+         return Prompts.NO_BANK_CONTEXT;
+      }
+      return "Bank" + (bankKnown && bankFromEarlierSession ? " (" + savedBankAge() + ")" : "") + ": "
+         + (bankKnown ? bankText(question, fullBank) : "unknown (not opened yet)");
+   }
+
+   public AccountMode getAccountMode() {
+      return accountMode;
    }
 
    /**
